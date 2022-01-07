@@ -136,6 +136,13 @@ public class HttpClient {
             }
         }
         
+        if httpMethod == .delete {
+            invokeDeleteDataTask(request as URLRequest) { response, responseData, responseError, errorCode in
+                completion(response, responseError, errorCode)
+            }
+            return
+        }
+        
         invokeDataTask(request as URLRequest,
                        successCompletion: { _, data in
             if data == nil {
