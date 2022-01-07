@@ -7,15 +7,25 @@
 
 import UIKit
 
-public class HttpRequestManager: NSObject {
+public class HttpNetworkingService: NSObject {
     private var httpClient: HttpClient!
+    
+    convenience init(httpClientConfiguration: HttpClientConfiguration) {
+        self.init()
+        self.httpClient = HttpClient(configuration: httpClientConfiguration)
+    }
     
     convenience init(httpClient: HttpClient) {
         self.init()
         self.httpClient = httpClient
     }
     
-    func executeDataRequest<I: Encodable, O: Decodable>(with endpoint: Endpoint,
+    public override init() {
+        super.init()
+        self.httpClient = HttpClient(configuration: HttpClientConfiguration())
+    }
+    
+    func executeDataRequest<I: Encodable, O: Decodable>(with endpoint: ApiEndpoint,
                                                         inputObject: I,
                                                         outputObject: O,
                                                         completion: @escaping ((_ response: Any?, _ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)) {
@@ -30,7 +40,7 @@ public class HttpRequestManager: NSObject {
         }
     }
     
-    func executeDeleteRequest<I: Encodable, O: Decodable>(with endpoint: Endpoint,
+    func executeDeleteRequest<I: Encodable, O: Decodable>(with endpoint: ApiEndpoint,
                                                           inputObject: I,
                                                           outputObject: O?,
                completion: @escaping ((_ response: Any?, _ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)) {

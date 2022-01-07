@@ -58,8 +58,8 @@ public enum HTTPResponseType: Int {
     case collection
 }
 
-public struct Endpoint {
-    var route: Route!
+public struct ApiEndpoint {
+    var route: ApiRoute!
     var httpMethod: HTTPMethod = .get
     var contentType: HTTPContentType = .applicationJson
     var headerParams: [String: String] = [:]
@@ -67,7 +67,7 @@ public struct Endpoint {
     var httpResponseType: HTTPResponseType = .empty
 }
 
-public struct Route {
+public struct ApiRoute {
     var baseUrl: URL!
     var path: String!
     
@@ -93,16 +93,16 @@ public class HttpClient {
         self.configuration = HttpClientConfiguration()
     }
     
-     public func executeDataRequest<I: Encodable, O: Decodable>(url: URL,
-                                                                httpMethod: HTTPMethod = .get,
-                                                                contentType: HTTPContentType = .applicationJson,
-                                                                headerParams: [String: String] = [:],
-                                                                inputJSON: Any? = nil,
-                                                                inputObject: I? = nil,
-                                                                outputObject: O? = nil,
-                                                                responseType: HTTPResponseType = .empty,
-                                                                completion: @escaping ((_ response: Any?, _ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)) {
-     
+    public func executeDataRequest<I: Encodable, O: Decodable>(url: URL,
+                                                               httpMethod: HTTPMethod = .get,
+                                                               contentType: HTTPContentType = .applicationJson,
+                                                               headerParams: [String: String] = [:],
+                                                               inputJSON: Any? = nil,
+                                                               inputObject: I? = nil,
+                                                               outputObject: O? = nil,
+                                                               responseType: HTTPResponseType = .empty,
+                                                               completion: @escaping ((_ response: Any?, _ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)) {
+        
         let request = NSMutableURLRequest(url: url)
         request.httpMethod = httpMethod.rawValue
         request.setValue(contentType.rawValue, forHTTPHeaderField: "Content-Type")
@@ -194,7 +194,7 @@ extension HttpClient {
                                 successCompletion: ((_ response: Any?, _ data: Data?) -> Void)?,
                                 failureCompletion: ((_ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)?) {
         let sessionDataTask = URLSession.shared.dataTask(with: request) { (data: Data?, apiResponse: URLResponse?, taskError: Error?) -> Void in
-            self.handleTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError) { taskResponse, responseData, responseError, errorCode in
+            self.handleDataTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError) { taskResponse, responseData, responseError, errorCode in
                 if let error = responseError {
                     if failureCompletion != nil {
                         failureCompletion!(error, errorCode)
@@ -224,7 +224,7 @@ extension HttpClient {
                                   successCompletion: ((_ response: Any?, _ data: Data?) -> Void)?,
                                   failureCompletion: ((_ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)?) {
         let sessionDataTask = URLSession.shared.uploadTask(with: request, from: binaryData) { (data: Data?, apiResponse: URLResponse?, taskError: Error?) -> Void in
-            self.handleTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError) { taskResponse, responseData, responseError, errorCode in
+            self.handleDataTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError) { taskResponse, responseData, responseError, errorCode in
                 if let error = responseError {
                     if failureCompletion != nil {
                         failureCompletion!(error, errorCode)
@@ -240,10 +240,10 @@ extension HttpClient {
         sessionDataTask.resume()
     }
     
-    private func handleTaskExecution(data: Data?,
-                                     apiResponse: URLResponse?,
-                                     taskError: Error?,
-                                     completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)?) {
+    private func handleDataTaskExecution(data: Data?,
+                                         apiResponse: URLResponse?,
+                                         taskError: Error?,
+                                         completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)?) {
         if apiResponse != nil && taskError == nil && data != nil {
             let httpResponse = apiResponse as! HTTPURLResponse
             let status: NSInteger = httpResponse.statusCode

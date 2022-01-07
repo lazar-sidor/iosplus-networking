@@ -8,15 +8,15 @@
 import Foundation
 
 public protocol HttpClientInterface: AnyObject {
-    func defaultRequestHeaders() -> [String: String]
+    func defaultRequestHTTPHeaders() -> [String: String]
 }
 
 public class DefaultHttpClientConfiguration: HttpClientInterface {
-    public func defaultRequestHeaders() -> [String : String] {
+    public func defaultRequestHTTPHeaders() -> [String : String] {
         return [:]
     }
 }
 
-public final class HttpClientConfiguration: DefaultHttpClientConfiguration {
+public class HttpClientConfiguration: DefaultHttpClientConfiguration {
     
 }
