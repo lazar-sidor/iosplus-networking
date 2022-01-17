@@ -10,12 +10,12 @@ import UIKit
 public class HttpNetworkingService: NSObject {
     private var httpClient: HttpClient!
     
-    convenience init(httpClientConfiguration: HttpClientConfiguration) {
+    public convenience init(httpClientConfiguration: HttpClientConfiguration) {
         self.init()
         self.httpClient = HttpClient(configuration: httpClientConfiguration)
     }
     
-    convenience init(httpClient: HttpClient) {
+    public convenience init(httpClient: HttpClient) {
         self.init()
         self.httpClient = httpClient
     }
@@ -25,7 +25,7 @@ public class HttpNetworkingService: NSObject {
         self.httpClient = HttpClient(configuration: HttpClientConfiguration())
     }
     
-    func executeDataRequest<I: Encodable, O: Decodable>(with endpoint: ApiEndpoint,
+    public func executeDataRequest<I: Encodable, O: Decodable>(with endpoint: ApiEndpoint,
                                                         inputObject: I,
                                                         outputObject: O,
                                                         completion: @escaping ((_ response: Any?, _ responseError: Error?, _ customErrror: NSError?) -> Void)) {
@@ -40,7 +40,7 @@ public class HttpNetworkingService: NSObject {
         }
     }
     
-    func executeDeleteRequest<I: Encodable, O: Decodable>(with endpoint: ApiEndpoint,
+    public func executeDeleteRequest<I: Encodable, O: Decodable>(with endpoint: ApiEndpoint,
                                                           inputObject: I,
                                                           outputObject: O?,
                completion: @escaping ((_ response: Any?, _ responseError: Error?, _ customError: NSError?) -> Void)) {
