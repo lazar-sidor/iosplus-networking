@@ -55,19 +55,33 @@ public enum HTTPResponseType: Int {
 }
 
 public struct ApiEndpoint {
-    var route: ApiRoute!
-    var httpMethod: HTTPMethod = .get
-    var contentType: HTTPContentType = .applicationJson
-    var headerParams: [String: String] = [:]
-    var inputJSONParams: Any? = nil
-    var httpResponseType: HTTPResponseType = .empty
+    public var route: ApiRoute!
+    public var httpMethod: HTTPMethod = .get
+    public var contentType: HTTPContentType = .applicationJson
+    public var headerParams: [String: String] = [:]
+    public var inputJSONParams: Any? = nil
+    public var httpResponseType: HTTPResponseType = .empty
+    
+    public init(route: ApiRoute,
+                httpMethod: HTTPMethod = .get,
+                contentType: HTTPContentType = .applicationJson,
+                headerParams: [String: String] = [:],
+                inputJSONParams: Any? = nil,
+                httpResponseType: HTTPResponseType = .empty) {
+        self.route = route
+        self.httpMethod = httpMethod
+        self.contentType = contentType
+        self.headerParams = headerParams
+        self.inputJSONParams = inputJSONParams
+        self.httpResponseType = httpResponseType
+    }
 }
 
 public struct ApiRoute {
     var baseUrl: URL!
     var path: String!
     
-    init(baseUrlPath: String, path:String) {
+    public init(baseUrlPath: String, path:String) {
         self.baseUrl = URL.init(string: baseUrlPath)
         self.path = path
     }
@@ -80,12 +94,12 @@ public struct ApiRoute {
 public class HttpClient {
     public var configuration: HttpClientConfiguration!
     
-    convenience init(configuration: HttpClientConfiguration) {
+    public convenience init(configuration: HttpClientConfiguration) {
         self.init()
         self.configuration = configuration
     }
     
-    init() {
+    public init() {
         self.configuration = HttpClientConfiguration()
     }
     
