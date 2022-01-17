@@ -33,5 +33,7 @@ open class DefaultHttpClientConfiguration: HttpClientInterface {
 }
 
 open class HttpClientConfiguration: DefaultHttpClientConfiguration {
-    
+    public override init() {
+        super.init()
+    }
 }
