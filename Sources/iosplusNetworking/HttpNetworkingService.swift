@@ -28,7 +28,7 @@ public class HttpNetworkingService: NSObject {
     public func executeDataRequest<I: Encodable, O: Decodable>(with endpoint: ApiEndpoint,
                                                         inputObject: I,
                                                         outputObject: O,
-                                                        completion: @escaping ((_ response: Any?, _ responseError: Error?, _ customErrror: NSError?) -> Void)) {
+                                                        completion: @escaping ((_ response: Any?, _ responseError: Error?) -> Void)) {
         httpClient.executeDataRequest(url: endpoint.route.url(),
                                       httpMethod: endpoint.httpMethod,
                                       contentType: endpoint.contentType,
@@ -36,15 +36,18 @@ public class HttpNetworkingService: NSObject {
                                       inputJSON: endpoint.inputJSONParams,
                                       inputObject: inputObject,
                                       outputObject: outputObject,
-                                      responseType: endpoint.httpResponseType) { response, responseError, errorCode in
-        }
+                                      responseType: endpoint.httpResponseType,
+                                      completion: completion)
     }
     
     public func executeDeleteRequest<I: Encodable, O: Decodable>(with endpoint: ApiEndpoint,
                                                           inputObject: I,
                                                           outputObject: O?,
-               completion: @escaping ((_ response: Any?, _ responseError: Error?, _ customError: NSError?) -> Void)) {
-        httpClient.executeDataRequest(url: endpoint.route.url(), httpMethod: .delete, inputObject: inputObject, outputObject: outputObject) { response, responseError, errorCode in
-        }
+               completion: @escaping ((_ response: Any?, _ responseError: Error?) -> Void)) {
+        httpClient.executeDataRequest(url: endpoint.route.url(),
+                                      httpMethod: .delete,
+                                      inputObject: inputObject,
+                                      outputObject: outputObject,
+                                      completion: completion)
     }
 }

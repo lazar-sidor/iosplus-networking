@@ -18,16 +18,16 @@ public protocol HttpClientInterface: AnyObject {
     func processResponseErrors(_ data: Data) -> [NSError]?
 }
 
-open class DefaultHttpClientConfiguration: HttpClientInterface {
-    public func defaultRequestHTTPHeaders() -> [String : String] {
+open class DefaultHttpClientConfiguration: HttpClientInterface {    
+    open func defaultRequestHTTPHeaders() -> [String : String] {
         return [:]
     }
     
-    public func processResponseData(_ data: Data) -> Any? {
+    open func processResponseData(_ data: Data) -> Any? {
         return nil
     }
     
-    public func processResponseErrors(_ data: Data) -> [NSError]? {
+    open func processResponseErrors(_ data: Data) -> [NSError]? {
         return nil
     }
 }

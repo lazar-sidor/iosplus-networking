@@ -111,7 +111,7 @@ public class HttpClient {
                                                                inputObject: I? = nil,
                                                                outputObject: O? = nil,
                                                                responseType: HTTPResponseType = .empty,
-                                                               completion: @escaping ((_ response: Any?, _ responseError: Error?, _ customError: NSError?) -> Void)) {
+                                                               completion: @escaping ((_ response: Any?, _ responseError: Error?) -> Void)) {
         
         let request = NSMutableURLRequest(url: url)
         request.httpMethod = httpMethod.rawValue
@@ -147,8 +147,8 @@ public class HttpClient {
         }
         
         if httpMethod == .delete {
-            invokeDeleteDataTask(request as URLRequest) { response, responseData, responseError, customError in
-                completion(response, responseError, customError)
+            invokeDeleteDataTask(request as URLRequest) { response, responseData, responseError in
+                completion(response, responseError)
             }
             return
         }
@@ -156,7 +156,7 @@ public class HttpClient {
         invokeDataTask(request as URLRequest,
                        successCompletion: { _, data in
             if data == nil {
-                completion(nil, nil, nil)
+                completion(nil, nil)
                 
             } else {
                 var outputData: Data = data!
@@ -173,7 +173,7 @@ public class HttpClient {
                     print(error)
                     
                     DispatchQueue.main.async {
-                        completion(nil, error, customOutputError)
+                        completion(nil, error)
                     }
                 }
                 
@@ -184,14 +184,14 @@ public class HttpClient {
                         let apiObjects: [O] = try decoder.decode([O].self, from: outputData)
                         
                         DispatchQueue.main.async {
-                            completion(apiObjects, nil, customOutputError)
+                            completion(apiObjects, customOutputError)
                         }
                         
                     } catch {
                         print(error)
                         
                         DispatchQueue.main.async {
-                            completion(nil, error, customOutputError)
+                            completion(nil, error)
                         }
                     }
                 } else if responseType == .singleItem {
@@ -202,24 +202,24 @@ public class HttpClient {
                         let apiObject: O = try decoder.decode(O.self, from: outputData)
                         
                         DispatchQueue.main.async {
-                            completion(apiObject, nil, customOutputError)
+                            completion(apiObject, customOutputError)
                         }
                     } catch {
                         print(error)
                         DispatchQueue.main.async {
-                            completion(nil, error, customOutputError)
+                            completion(nil, error)
                         }
                     }
                     
                 } else {
                     DispatchQueue.main.async {
-                        completion(nil, nil, customOutputError)
+                        completion(nil, customOutputError)
                     }
                 }
             }
-        }, failureCompletion: { apiError, customError in
+        }, failureCompletion: { apiError in
             DispatchQueue.main.async {
-                completion(nil, apiError, customError)
+                completion(nil, apiError)
             }
         })
     }
@@ -229,12 +229,12 @@ public class HttpClient {
 extension HttpClient {
     private func invokeDataTask(_ request: URLRequest,
                                 successCompletion: ((_ response: Any?, _ data: Data?) -> Void)?,
-                                failureCompletion: ((_ responseError: Error?, _ customResponseError: NSError?) -> Void)?) {
+                                failureCompletion: ((_ responseError: Error?) -> Void)?) {
         let sessionDataTask = URLSession.shared.dataTask(with: request) { (data: Data?, apiResponse: URLResponse?, taskError: Error?) -> Void in
-            self.handleDataTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError) { taskResponse, responseData, responseError, errorCode in
+            self.handleDataTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError) { taskResponse, responseData, responseError in
                 if let error = responseError {
                     if failureCompletion != nil {
-                        failureCompletion!(error, errorCode)
+                        failureCompletion!(error)
                     }
                 } else {
                     if successCompletion != nil {
@@ -248,7 +248,7 @@ extension HttpClient {
     }
     
     private func invokeDeleteDataTask(_ request: URLRequest,
-                                      completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?, _ customError: NSError?) -> Void)?) {
+                                      completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?) -> Void)?) {
         let sessionDataTask = URLSession.shared.dataTask(with: request) { (data: Data?, apiResponse: URLResponse?, taskError: Error?) -> Void in
             self.handleDeleteTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError, completion: completion)
         }
@@ -259,12 +259,12 @@ extension HttpClient {
     private func invokeUploadTask(_ request: URLRequest,
                                   binaryData: Data,
                                   successCompletion: ((_ response: Any?, _ data: Data?) -> Void)?,
-                                  failureCompletion: ((_ responseError: Error?, _ customError: NSError?) -> Void)?) {
+                                  failureCompletion: ((_ responseError: Error?) -> Void)?) {
         let sessionDataTask = URLSession.shared.uploadTask(with: request, from: binaryData) { (data: Data?, apiResponse: URLResponse?, taskError: Error?) -> Void in
-            self.handleDataTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError) { taskResponse, responseData, responseError, errorCode in
+            self.handleDataTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError) { taskResponse, responseData, responseError in
                 if let error = responseError {
                     if failureCompletion != nil {
-                        failureCompletion!(error, errorCode)
+                        failureCompletion!(error)
                     }
                 } else {
                     if successCompletion != nil {
@@ -280,7 +280,7 @@ extension HttpClient {
     private func handleDataTaskExecution(data: Data?,
                                          apiResponse: URLResponse?,
                                          taskError: Error?,
-                                         completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?, _ customError: NSError?) -> Void)?) {
+                                         completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?) -> Void)?) {
         if apiResponse != nil && taskError == nil && data != nil {
             let httpResponse = apiResponse as! HTTPURLResponse
             let status: NSInteger = httpResponse.statusCode
@@ -291,7 +291,7 @@ extension HttpClient {
                 if status == HTTPStatus.notAuthorized.rawValue {
                     DispatchQueue.main.async {
                         if completion != nil {
-                            completion!(apiResponse, data, taskError, nil)
+                            completion!(apiResponse, data, taskError)
                         }
                     }
                     return
@@ -301,12 +301,12 @@ extension HttpClient {
         
         if taskError != nil && completion != nil {
             DispatchQueue.main.async {
-                completion!(apiResponse, data, taskError, nil)
+                completion!(apiResponse, data, taskError)
             }
             
         } else if completion != nil {
             DispatchQueue.main.async {
-                completion!(apiResponse, data, nil, nil)
+                completion!(apiResponse, data, nil)
             }
         }
     }
@@ -314,7 +314,7 @@ extension HttpClient {
     private func handleDeleteTaskExecution(data: Data?,
                                            apiResponse: URLResponse?,
                                            taskError: Error?,
-                                           completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?, _ customError: NSError?) -> Void)?) {
+                                           completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?) -> Void)?) {
         if apiResponse != nil && taskError == nil && data != nil {
             let httpResponse = apiResponse as! HTTPURLResponse
             let status: NSInteger = httpResponse.statusCode
@@ -325,7 +325,7 @@ extension HttpClient {
                 if status == HTTPStatus.notAuthorized.rawValue {
                     DispatchQueue.main.async {
                         if completion != nil {
-                            completion!(apiResponse, data, taskError, nil)
+                            completion!(apiResponse, data, taskError)
                         }
                     }
                     return
@@ -335,12 +335,12 @@ extension HttpClient {
         
         if taskError != nil && completion != nil {
             DispatchQueue.main.async {
-                completion!(apiResponse, data, taskError, nil)
+                completion!(apiResponse, data, taskError)
             }
             
         } else if completion != nil {
             DispatchQueue.main.async {
-                completion!(apiResponse, data, nil, nil)
+                completion!(apiResponse, data, nil)
             }
         }
     }
