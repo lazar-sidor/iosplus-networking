@@ -28,7 +28,7 @@ public class HttpNetworkingService: NSObject {
     func executeDataRequest<I: Encodable, O: Decodable>(with endpoint: ApiEndpoint,
                                                         inputObject: I,
                                                         outputObject: O,
-                                                        completion: @escaping ((_ response: Any?, _ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)) {
+                                                        completion: @escaping ((_ response: Any?, _ responseError: Error?, _ customErrror: NSError?) -> Void)) {
         httpClient.executeDataRequest(url: endpoint.route.url(),
                                       httpMethod: endpoint.httpMethod,
                                       contentType: endpoint.contentType,
@@ -43,7 +43,7 @@ public class HttpNetworkingService: NSObject {
     func executeDeleteRequest<I: Encodable, O: Decodable>(with endpoint: ApiEndpoint,
                                                           inputObject: I,
                                                           outputObject: O?,
-               completion: @escaping ((_ response: Any?, _ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)) {
+               completion: @escaping ((_ response: Any?, _ responseError: Error?, _ customError: NSError?) -> Void)) {
         httpClient.executeDataRequest(url: endpoint.route.url(), httpMethod: .delete, inputObject: inputObject, outputObject: outputObject) { response, responseError, errorCode in
         }
     }

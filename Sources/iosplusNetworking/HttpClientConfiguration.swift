@@ -7,16 +7,31 @@
 
 import Foundation
 
-public protocol HttpClientInterface: AnyObject {
-    func defaultRequestHTTPHeaders() -> [String: String]
+public protocol HttpClientLoggingInterface: AnyObject {
+    func logRequest()
+    func logError(_ error: Error)
 }
 
-public class DefaultHttpClientConfiguration: HttpClientInterface {
+public protocol HttpClientInterface: AnyObject {
+    func defaultRequestHTTPHeaders() -> [String: String]
+    func processResponseData(_ data: Data) -> Any?
+    func processResponseErrors(_ data: Data) -> [NSError]?
+}
+
+open class DefaultHttpClientConfiguration: HttpClientInterface {
     public func defaultRequestHTTPHeaders() -> [String : String] {
         return [:]
     }
+    
+    public func processResponseData(_ data: Data) -> Any? {
+        return nil
+    }
+    
+    public func processResponseErrors(_ data: Data) -> [NSError]? {
+        return nil
+    }
 }
 
-public class HttpClientConfiguration: DefaultHttpClientConfiguration {
+open class HttpClientConfiguration: DefaultHttpClientConfiguration {
     
 }

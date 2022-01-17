@@ -36,10 +36,6 @@ public enum HTTPStatus: Int {
     }
 }
 
-public enum HTTPCustomErrorCode: Int {
-    case failedToDecodeResponse = 1
-}
-
 public enum HTTPMethod: String {
     case get = "GET"
     case put = "PUT"
@@ -82,7 +78,7 @@ public struct ApiRoute {
 }
 
 public class HttpClient {
-    private var configuration: HttpClientConfiguration!
+    public var configuration: HttpClientConfiguration!
     
     convenience init(configuration: HttpClientConfiguration) {
         self.init()
@@ -101,7 +97,7 @@ public class HttpClient {
                                                                inputObject: I? = nil,
                                                                outputObject: O? = nil,
                                                                responseType: HTTPResponseType = .empty,
-                                                               completion: @escaping ((_ response: Any?, _ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)) {
+                                                               completion: @escaping ((_ response: Any?, _ responseError: Error?, _ customError: NSError?) -> Void)) {
         
         let request = NSMutableURLRequest(url: url)
         request.httpMethod = httpMethod.rawValue
@@ -137,8 +133,8 @@ public class HttpClient {
         }
         
         if httpMethod == .delete {
-            invokeDeleteDataTask(request as URLRequest) { response, responseData, responseError, errorCode in
-                completion(response, responseError, errorCode)
+            invokeDeleteDataTask(request as URLRequest) { response, responseData, responseError, customError in
+                completion(response, responseError, customError)
             }
             return
         }
@@ -149,47 +145,67 @@ public class HttpClient {
                 completion(nil, nil, nil)
                 
             } else {
+                var outputData: Data = data!
+                var customOutputError: NSError? = nil
+                do {
+                    if let processedData = self.configuration.processResponseData(data!) {
+                        outputData = try JSONSerialization.data(withJSONObject: processedData, options: .prettyPrinted)
+                    }
+                    
+                    if let processedErrors = self.configuration.processResponseErrors(data!) {
+                        customOutputError = processedErrors.first
+                    }
+                } catch {
+                    print(error)
+                    
+                    DispatchQueue.main.async {
+                        completion(nil, error, customOutputError)
+                    }
+                }
+                
                 if responseType == .collection {
                     do {
                         let decoder = JSONDecoder()
                         decoder.dateDecodingStrategy = JSONDecoder.DateDecodingStrategy.iso8601
-                        let apiObjects: [O] = try decoder.decode([O].self, from: data!)
+                        let apiObjects: [O] = try decoder.decode([O].self, from: outputData)
                         
                         DispatchQueue.main.async {
-                            completion(apiObjects, nil, nil)
+                            completion(apiObjects, nil, customOutputError)
                         }
                         
                     } catch {
                         print(error)
                         
                         DispatchQueue.main.async {
-                            completion(nil, error, nil)
+                            completion(nil, error, customOutputError)
                         }
                     }
                 } else if responseType == .singleItem {
+                                       
                     do {
                         let decoder = JSONDecoder()
                         decoder.dateDecodingStrategy = JSONDecoder.DateDecodingStrategy.iso8601
-                        let apiObject: O = try decoder.decode(O.self, from: data!)
+                        let apiObject: O = try decoder.decode(O.self, from: outputData)
                         
                         DispatchQueue.main.async {
-                            completion(apiObject, nil, nil)
+                            completion(apiObject, nil, customOutputError)
                         }
                     } catch {
                         print(error)
                         DispatchQueue.main.async {
-                            completion(nil, error, nil)
+                            completion(nil, error, customOutputError)
                         }
                     }
+                    
                 } else {
                     DispatchQueue.main.async {
-                        completion(nil, nil, nil)
+                        completion(nil, nil, customOutputError)
                     }
                 }
             }
-        }, failureCompletion: { apiError, errCode in
+        }, failureCompletion: { apiError, customError in
             DispatchQueue.main.async {
-                completion(nil, apiError, errCode)
+                completion(nil, apiError, customError)
             }
         })
     }
@@ -199,7 +215,7 @@ public class HttpClient {
 extension HttpClient {
     private func invokeDataTask(_ request: URLRequest,
                                 successCompletion: ((_ response: Any?, _ data: Data?) -> Void)?,
-                                failureCompletion: ((_ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)?) {
+                                failureCompletion: ((_ responseError: Error?, _ customResponseError: NSError?) -> Void)?) {
         let sessionDataTask = URLSession.shared.dataTask(with: request) { (data: Data?, apiResponse: URLResponse?, taskError: Error?) -> Void in
             self.handleDataTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError) { taskResponse, responseData, responseError, errorCode in
                 if let error = responseError {
@@ -218,7 +234,7 @@ extension HttpClient {
     }
     
     private func invokeDeleteDataTask(_ request: URLRequest,
-                                      completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)?) {
+                                      completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?, _ customError: NSError?) -> Void)?) {
         let sessionDataTask = URLSession.shared.dataTask(with: request) { (data: Data?, apiResponse: URLResponse?, taskError: Error?) -> Void in
             self.handleDeleteTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError, completion: completion)
         }
@@ -229,7 +245,7 @@ extension HttpClient {
     private func invokeUploadTask(_ request: URLRequest,
                                   binaryData: Data,
                                   successCompletion: ((_ response: Any?, _ data: Data?) -> Void)?,
-                                  failureCompletion: ((_ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)?) {
+                                  failureCompletion: ((_ responseError: Error?, _ customError: NSError?) -> Void)?) {
         let sessionDataTask = URLSession.shared.uploadTask(with: request, from: binaryData) { (data: Data?, apiResponse: URLResponse?, taskError: Error?) -> Void in
             self.handleDataTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError) { taskResponse, responseData, responseError, errorCode in
                 if let error = responseError {
@@ -250,7 +266,7 @@ extension HttpClient {
     private func handleDataTaskExecution(data: Data?,
                                          apiResponse: URLResponse?,
                                          taskError: Error?,
-                                         completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)?) {
+                                         completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?, _ customError: NSError?) -> Void)?) {
         if apiResponse != nil && taskError == nil && data != nil {
             let httpResponse = apiResponse as! HTTPURLResponse
             let status: NSInteger = httpResponse.statusCode
@@ -271,7 +287,7 @@ extension HttpClient {
         
         if taskError != nil && completion != nil {
             DispatchQueue.main.async {
-                completion!(apiResponse, data, taskError, .failedToDecodeResponse)
+                completion!(apiResponse, data, taskError, nil)
             }
             
         } else if completion != nil {
@@ -284,7 +300,7 @@ extension HttpClient {
     private func handleDeleteTaskExecution(data: Data?,
                                            apiResponse: URLResponse?,
                                            taskError: Error?,
-                                           completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?, _ errorCode: HTTPCustomErrorCode?) -> Void)?) {
+                                           completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?, _ customError: NSError?) -> Void)?) {
         if apiResponse != nil && taskError == nil && data != nil {
             let httpResponse = apiResponse as! HTTPURLResponse
             let status: NSInteger = httpResponse.statusCode
@@ -305,7 +321,7 @@ extension HttpClient {
         
         if taskError != nil && completion != nil {
             DispatchQueue.main.async {
-                completion!(apiResponse, data, taskError, .failedToDecodeResponse)
+                completion!(apiResponse, data, taskError, nil)
             }
             
         } else if completion != nil {
