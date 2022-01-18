@@ -93,10 +93,15 @@ public struct ApiRoute {
 
 public class HttpClient {
     public var configuration: HttpClientConfiguration!
+    private var httpLogger: HttpNetworkAPILogger!
     
     public convenience init(configuration: HttpClientConfiguration) {
         self.init()
         self.configuration = configuration
+        self.httpLogger = HttpNetworkAPILogger(logger: configuration,
+                                               verbose: true,
+                                               requestDataFormatter: HttpNetworkAPILogger.JSONRequestDataFormatter,
+                                               responseDataFormatter: HttpNetworkAPILogger.JSONResponseDataFormatter)
     }
     
     public init() {
@@ -130,7 +135,7 @@ public class HttpClient {
                     request.httpBody = body
                     
                 } catch {
-                    print("Error converting model class to JSON")
+                    httpLogger.reportError("Error converting model class to JSON")
                 }
             }
         }
@@ -142,7 +147,7 @@ public class HttpClient {
                 request.httpBody = jsonData
                 
             } catch {
-                print("Error converting model class to Dictionary")
+                httpLogger.reportError("Error converting model class to Dictionary")
             }
         }
         
@@ -170,8 +175,7 @@ public class HttpClient {
                         customOutputError = processedErrors.first
                     }
                 } catch {
-                    print(error)
-                    
+                    self.httpLogger.reportError(error.localizedDescription)
                     DispatchQueue.main.async {
                         completion(nil, error)
                     }
@@ -188,8 +192,7 @@ public class HttpClient {
                         }
                         
                     } catch {
-                        print(error)
-                        
+                        self.httpLogger.reportError(error.localizedDescription)
                         DispatchQueue.main.async {
                             completion(nil, error)
                         }
@@ -205,7 +208,7 @@ public class HttpClient {
                             completion(apiObject, customOutputError)
                         }
                     } catch {
-                        print(error)
+                        self.httpLogger.reportError(error.localizedDescription)
                         DispatchQueue.main.async {
                             completion(nil, error)
                         }
@@ -230,8 +233,11 @@ extension HttpClient {
     private func invokeDataTask(_ request: URLRequest,
                                 successCompletion: ((_ response: Any?, _ data: Data?) -> Void)?,
                                 failureCompletion: ((_ responseError: Error?) -> Void)?) {
+        httpLogger.willSend(request)
+        
         let sessionDataTask = URLSession.shared.dataTask(with: request) { (data: Data?, apiResponse: URLResponse?, taskError: Error?) -> Void in
-            self.handleDataTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError) { taskResponse, responseData, responseError in
+            
+            self.handleDataTaskExecution(request: request, data: data, apiResponse: apiResponse, taskError: taskError) { taskResponse, responseData, responseError in
                 if let error = responseError {
                     if failureCompletion != nil {
                         failureCompletion!(error)
@@ -249,8 +255,11 @@ extension HttpClient {
     
     private func invokeDeleteDataTask(_ request: URLRequest,
                                       completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?) -> Void)?) {
+        
+        httpLogger.willSend(request)
+        
         let sessionDataTask = URLSession.shared.dataTask(with: request) { (data: Data?, apiResponse: URLResponse?, taskError: Error?) -> Void in
-            self.handleDeleteTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError, completion: completion)
+            self.handleDeleteTaskExecution(request: request, data: data, apiResponse: apiResponse, taskError: taskError, completion: completion)
         }
         
         sessionDataTask.resume()
@@ -260,8 +269,13 @@ extension HttpClient {
                                   binaryData: Data,
                                   successCompletion: ((_ response: Any?, _ data: Data?) -> Void)?,
                                   failureCompletion: ((_ responseError: Error?) -> Void)?) {
+        
+        httpLogger.willSend(request)
+        
         let sessionDataTask = URLSession.shared.uploadTask(with: request, from: binaryData) { (data: Data?, apiResponse: URLResponse?, taskError: Error?) -> Void in
-            self.handleDataTaskExecution(data: data, apiResponse: apiResponse, taskError: taskError) { taskResponse, responseData, responseError in
+            
+            self.handleDataTaskExecution(request: request, data: data, apiResponse: apiResponse, taskError: taskError) { taskResponse, responseData, responseError in
+                
                 if let error = responseError {
                     if failureCompletion != nil {
                         failureCompletion!(error)
@@ -277,18 +291,21 @@ extension HttpClient {
         sessionDataTask.resume()
     }
     
-    private func handleDataTaskExecution(data: Data?,
+    private func handleDataTaskExecution(request: URLRequest,
+                                         data: Data?,
                                          apiResponse: URLResponse?,
                                          taskError: Error?,
                                          completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?) -> Void)?) {
         if apiResponse != nil && taskError == nil && data != nil {
+            
             let httpResponse = apiResponse as! HTTPURLResponse
             let status: NSInteger = httpResponse.statusCode
             
+            httpLogger.didReceive(httpResponse, responseData: data, target: request.url!)
+            
             if status != HTTPStatus.ok.rawValue && status != HTTPStatus.noContent.rawValue {
-                print(httpResponse)
-                
                 if status == HTTPStatus.notAuthorized.rawValue {
+                    
                     DispatchQueue.main.async {
                         if completion != nil {
                             completion!(apiResponse, data, taskError)
@@ -300,6 +317,7 @@ extension HttpClient {
         }
         
         if taskError != nil && completion != nil {
+            self.httpLogger.reportError(taskError!.localizedDescription)
             DispatchQueue.main.async {
                 completion!(apiResponse, data, taskError)
             }
@@ -311,7 +329,8 @@ extension HttpClient {
         }
     }
     
-    private func handleDeleteTaskExecution(data: Data?,
+    private func handleDeleteTaskExecution(request: URLRequest,
+                                           data: Data?,
                                            apiResponse: URLResponse?,
                                            taskError: Error?,
                                            completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?) -> Void)?) {
@@ -319,8 +338,9 @@ extension HttpClient {
             let httpResponse = apiResponse as! HTTPURLResponse
             let status: NSInteger = httpResponse.statusCode
             
+            httpLogger.didReceive(httpResponse, responseData: data, target: request.url!)
+            
             if status != HTTPStatus.ok.rawValue && status != HTTPStatus.noContent.rawValue {
-                print(httpResponse)
                 
                 if status == HTTPStatus.notAuthorized.rawValue {
                     DispatchQueue.main.async {
@@ -334,6 +354,7 @@ extension HttpClient {
         }
         
         if taskError != nil && completion != nil {
+            self.httpLogger.reportError(taskError!.localizedDescription)
             DispatchQueue.main.async {
                 completion!(apiResponse, data, taskError)
             }
