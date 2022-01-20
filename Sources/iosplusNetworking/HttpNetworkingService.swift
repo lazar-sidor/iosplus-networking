@@ -71,7 +71,7 @@ class TestApiService {
             case .fulfilledCollection(let array):
                 // code
                 break
-            case .failed(let optional):
+            case .rejected(let optional):
                 // code
                 break
             }
@@ -79,5 +79,5 @@ class TestApiService {
         }
     }
 }
- */
 
+*/

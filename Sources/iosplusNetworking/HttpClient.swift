@@ -95,13 +95,13 @@ public enum ApiResult<T> {
     case fulfilledEmpty
     case fulfilledSingle(T)
     case fulfilledCollection([T])
-    case failed(Error?)
+    case rejected(Error?)
     
     public var isFulfilled: Bool {
         switch self {
         case .fulfilledSingle, .fulfilledCollection, .fulfilledEmpty:
             return true
-        case .failed:
+        case .rejected:
             return false
         }
     }
@@ -170,7 +170,7 @@ public class HttpClient {
             invokeDeleteDataTask(request as URLRequest) { response, responseData, responseError in
                 DispatchQueue.main.async {
                     if let responseError = responseError {
-                        completion(ApiResult.failed(responseError))
+                        completion(ApiResult.rejected(responseError))
                     } else {
                         completion(ApiResult.fulfilledEmpty)
                     }
@@ -200,7 +200,7 @@ public class HttpClient {
                 } catch {
                     self.httpLogger.reportError(error.localizedDescription)
                     DispatchQueue.main.async {
-                        completion(ApiResult.failed(error))
+                        completion(ApiResult.rejected(error))
                     }
                 }
                 
@@ -222,7 +222,7 @@ public class HttpClient {
                     } catch {
                         self.httpLogger.reportError(error.localizedDescription)
                         DispatchQueue.main.async {
-                            completion(ApiResult.failed(error))
+                            completion(ApiResult.rejected(error))
                         }
                     }
                 } else if responseType == .singleItem {
@@ -237,14 +237,14 @@ public class HttpClient {
                     } catch {
                         self.httpLogger.reportError(error.localizedDescription)
                         DispatchQueue.main.async {
-                            completion(ApiResult.failed(error))
+                            completion(ApiResult.rejected(error))
                         }
                     }
                     
                 } else {
                     DispatchQueue.main.async {
                         if let responseError = customOutputError {
-                            completion(ApiResult.failed(responseError))
+                            completion(ApiResult.rejected(responseError))
                         } else {
                             completion(ApiResult.fulfilledEmpty)
                         }
@@ -253,7 +253,7 @@ public class HttpClient {
             }
         }, failureCompletion: { apiError in
             DispatchQueue.main.async {
-                completion(ApiResult.failed(apiError))
+                completion(ApiResult.rejected(apiError))
             }
         })
     }
