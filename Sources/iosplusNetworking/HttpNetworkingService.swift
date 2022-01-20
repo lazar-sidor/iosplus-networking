@@ -27,7 +27,7 @@ public class HttpNetworkingService: NSObject {
     
     public func executeDataRequest<T: Codable>(with endpoint: ApiEndpoint,
                                                                inputObject: T?,
-                                                               completion: @escaping (ApiResult<T?>) -> Void) {
+                                                               completion: @escaping (ApiResult<T>) -> Void) {
         httpClient.executeDataRequest(url: endpoint.route.url(),
                                       httpMethod: endpoint.httpMethod,
                                       contentType: endpoint.contentType,
@@ -41,7 +41,7 @@ public class HttpNetworkingService: NSObject {
     public func executeDeleteRequest<T: Codable>(with endpoint: ApiEndpoint,
                                                                  inputObject: T?,
                                                                  outputObjectType: AnyClass?,
-                                                                 completion: @escaping (ApiResult<T?>) -> Void) {
+                                                                 completion: @escaping (ApiResult<T>) -> Void) {
         httpClient.executeDataRequest(url: endpoint.route.url(),
                                       httpMethod: .delete,
                                       inputObject: inputObject,
@@ -57,10 +57,27 @@ class User: NSObject, Codable {
 }
 
 class TestApiService {
-    class func sampleEndpointCall(with completion: @escaping (ApiResult<User?>) -> Void) {
+    class func sampleEndpointCall(with completion: @escaping (ApiResult<User>) -> Void) {
         let service: HttpNetworkingService = HttpNetworkingService(httpClientConfiguration: HttpClientConfiguration())
         let endpoint: ApiEndpoint = ApiEndpoint(route: ApiRoute(baseUrlPath: "someBaseUrl", path: "somePath"))
-        service.executeDataRequest(with: endpoint, inputObject: nil, completion: completion)
+        service.executeDataRequest(with: endpoint, inputObject: nil) { (response: ApiResult<User>) in
+            switch response {
+            case .fulfilledEmpty:
+                // code
+                break
+            case .fulfilledSingle(let t):
+                // code
+                break
+            case .fulfilledCollection(let array):
+                // code
+                break
+            case .failed(let optional):
+                // code
+                break
+            }
+            
+        }
     }
 }
-*/
+ */
+
