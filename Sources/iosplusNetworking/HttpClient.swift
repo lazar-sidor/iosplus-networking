@@ -91,6 +91,20 @@ public struct ApiRoute {
     }
 }
 
+public enum ApiResult<T> {
+    case fulfilled([T]?)
+    case rejected(Error?)
+    
+    var isFulfilled: Bool {
+        switch self {
+        case .fulfilled:
+            return true
+        case .rejected:
+            return false
+        }
+    }
+}
+
 public class HttpClient {
     public var configuration: HttpClientConfiguration!
     private var httpLogger: HttpNetworkAPILogger!
@@ -108,15 +122,14 @@ public class HttpClient {
         self.configuration = HttpClientConfiguration()
     }
     
-    public func executeDataRequest<I: Encodable, O: Decodable>(url: URL,
-                                                               httpMethod: HTTPMethod = .get,
-                                                               contentType: HTTPContentType = .applicationJson,
-                                                               headerParams: [String: String] = [:],
-                                                               inputJSON: Any? = nil,
-                                                               inputObject: I? = nil,
-                                                               outputObject: O? = nil,
-                                                               responseType: HTTPResponseType = .empty,
-                                                               completion: @escaping ((_ response: Any?, _ responseError: Error?) -> Void)) {
+    public func executeDataRequest<T: Codable>(url: URL,
+                                               httpMethod: HTTPMethod = .get,
+                                               contentType: HTTPContentType = .applicationJson,
+                                               headerParams: [String: String] = [:],
+                                               inputJSON: Any? = nil,
+                                               inputObject: T? = nil,
+                                               responseType: HTTPResponseType = .empty,
+                                               completion: @escaping (ApiResult<T?>) -> Void) {
         
         let request = NSMutableURLRequest(url: url)
         request.httpMethod = httpMethod.rawValue
@@ -153,7 +166,13 @@ public class HttpClient {
         
         if httpMethod == .delete {
             invokeDeleteDataTask(request as URLRequest) { response, responseData, responseError in
-                completion(response, responseError)
+                DispatchQueue.main.async {
+                    if let responseError = responseError {
+                        completion(ApiResult.rejected(responseError))
+                    } else {
+                        completion(ApiResult.fulfilled(nil))
+                    }
+                }
             }
             return
         }
@@ -161,7 +180,9 @@ public class HttpClient {
         invokeDataTask(request as URLRequest,
                        successCompletion: { _, data in
             if data == nil {
-                completion(nil, nil)
+                DispatchQueue.main.async {
+                    completion(ApiResult.fulfilled(nil))
+                }
                 
             } else {
                 var outputData: Data = data!
@@ -177,52 +198,60 @@ public class HttpClient {
                 } catch {
                     self.httpLogger.reportError(error.localizedDescription)
                     DispatchQueue.main.async {
-                        completion(nil, error)
+                        completion(ApiResult.rejected(error))
                     }
                 }
                 
-                if responseType == .collection {
+                if responseType == .empty {
+                    DispatchQueue.main.async {
+                        completion(ApiResult.fulfilled(nil))
+                    }
+                }
+                else if responseType == .collection {
                     do {
                         let decoder = JSONDecoder()
                         decoder.dateDecodingStrategy = JSONDecoder.DateDecodingStrategy.iso8601
-                        let apiObjects: [O] = try decoder.decode([O].self, from: outputData)
+                        let apiObjects = try decoder.decode([T].self, from: outputData)
                         
                         DispatchQueue.main.async {
-                            completion(apiObjects, customOutputError)
+                            completion(ApiResult.fulfilled(apiObjects))
                         }
                         
                     } catch {
                         self.httpLogger.reportError(error.localizedDescription)
                         DispatchQueue.main.async {
-                            completion(nil, error)
+                            completion(ApiResult.rejected(error))
                         }
                     }
                 } else if responseType == .singleItem {
-                                       
+                    
                     do {
                         let decoder = JSONDecoder()
                         decoder.dateDecodingStrategy = JSONDecoder.DateDecodingStrategy.iso8601
-                        let apiObject: O = try decoder.decode(O.self, from: outputData)
-                        
+                        let apiObject: T = try decoder.decode(T.self, from: outputData)
                         DispatchQueue.main.async {
-                            completion(apiObject, customOutputError)
+                            completion(ApiResult.fulfilled([apiObject]))
                         }
                     } catch {
                         self.httpLogger.reportError(error.localizedDescription)
                         DispatchQueue.main.async {
-                            completion(nil, error)
+                            completion(ApiResult.rejected(error))
                         }
                     }
                     
                 } else {
                     DispatchQueue.main.async {
-                        completion(nil, customOutputError)
+                        if let responseError = customOutputError {
+                            completion(ApiResult.rejected(responseError))
+                        } else {
+                            completion(ApiResult.fulfilled(nil))
+                        }
                     }
                 }
             }
         }, failureCompletion: { apiError in
             DispatchQueue.main.async {
-                completion(nil, apiError)
+                completion(ApiResult.rejected(apiError))
             }
         })
     }
@@ -305,11 +334,8 @@ extension HttpClient {
             
             if status != HTTPStatus.ok.rawValue && status != HTTPStatus.noContent.rawValue {
                 if status == HTTPStatus.notAuthorized.rawValue {
-                    
-                    DispatchQueue.main.async {
-                        if completion != nil {
-                            completion!(apiResponse, data, taskError)
-                        }
+                    if completion != nil {
+                        completion!(apiResponse, data, taskError)
                     }
                     return
                 }
@@ -318,14 +344,10 @@ extension HttpClient {
         
         if taskError != nil && completion != nil {
             self.httpLogger.reportError(taskError!.localizedDescription)
-            DispatchQueue.main.async {
-                completion!(apiResponse, data, taskError)
-            }
+            completion!(apiResponse, data, taskError)
             
         } else if completion != nil {
-            DispatchQueue.main.async {
-                completion!(apiResponse, data, nil)
-            }
+            completion!(apiResponse, data, nil)
         }
     }
     
@@ -343,10 +365,8 @@ extension HttpClient {
             if status != HTTPStatus.ok.rawValue && status != HTTPStatus.noContent.rawValue {
                 
                 if status == HTTPStatus.notAuthorized.rawValue {
-                    DispatchQueue.main.async {
-                        if completion != nil {
-                            completion!(apiResponse, data, taskError)
-                        }
+                    if completion != nil {
+                        completion!(apiResponse, data, taskError)
                     }
                     return
                 }
@@ -355,14 +375,10 @@ extension HttpClient {
         
         if taskError != nil && completion != nil {
             self.httpLogger.reportError(taskError!.localizedDescription)
-            DispatchQueue.main.async {
-                completion!(apiResponse, data, taskError)
-            }
+            completion!(apiResponse, data, taskError)
             
         } else if completion != nil {
-            DispatchQueue.main.async {
-                completion!(apiResponse, data, nil)
-            }
+            completion!(apiResponse, data, nil)
         }
     }
 }

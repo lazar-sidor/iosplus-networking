@@ -25,29 +25,42 @@ public class HttpNetworkingService: NSObject {
         self.httpClient = HttpClient(configuration: HttpClientConfiguration())
     }
     
-    public func executeDataRequest<I: Encodable, O: Decodable>(with endpoint: ApiEndpoint,
-                                                        inputObject: I,
-                                                        outputObject: O,
-                                                        completion: @escaping ((_ response: Any?, _ responseError: Error?) -> Void)) {
+    public func executeDataRequest<T: Codable>(with endpoint: ApiEndpoint,
+                                                               inputObject: T?,
+                                                               completion: @escaping (ApiResult<T?>) -> Void) {
         httpClient.executeDataRequest(url: endpoint.route.url(),
                                       httpMethod: endpoint.httpMethod,
                                       contentType: endpoint.contentType,
                                       headerParams: endpoint.headerParams,
                                       inputJSON: endpoint.inputJSONParams,
                                       inputObject: inputObject,
-                                      outputObject: outputObject,
                                       responseType: endpoint.httpResponseType,
                                       completion: completion)
     }
     
-    public func executeDeleteRequest<I: Encodable, O: Decodable>(with endpoint: ApiEndpoint,
-                                                          inputObject: I,
-                                                          outputObject: O?,
-               completion: @escaping ((_ response: Any?, _ responseError: Error?) -> Void)) {
+    public func executeDeleteRequest<T: Codable>(with endpoint: ApiEndpoint,
+                                                                 inputObject: T?,
+                                                                 outputObjectType: AnyClass?,
+                                                                 completion: @escaping (ApiResult<T?>) -> Void) {
         httpClient.executeDataRequest(url: endpoint.route.url(),
                                       httpMethod: .delete,
                                       inputObject: inputObject,
-                                      outputObject: outputObject,
                                       completion: completion)
     }
 }
+
+/*
+// Sample of usage
+ 
+class User: NSObject, Codable {
+   // some properties
+}
+
+class TestApiService {
+    class func sampleEndpointCall(with completion: @escaping (ApiResult<User?>) -> Void) {
+        let service: HttpNetworkingService = HttpNetworkingService(httpClientConfiguration: HttpClientConfiguration())
+        let endpoint: ApiEndpoint = ApiEndpoint(route: ApiRoute(baseUrlPath: "someBaseUrl", path: "somePath"))
+        service.executeDataRequest(with: endpoint, inputObject: nil, completion: completion)
+    }
+}
+*/
