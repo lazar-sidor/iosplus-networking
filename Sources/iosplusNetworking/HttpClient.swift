@@ -54,26 +54,51 @@ public enum HTTPResponseType: Int {
     case collection
 }
 
+public enum ApiErrorCode: LocalizedError {
+    case custom(code: Int, message: String?)
+    case unknown
+
+    public var errorDescription: String? {
+        switch self {
+        case .custom(let code, let message):
+            if let message = message {
+                return message
+            } else {
+                return "Internal error with code: \(code)"
+            }
+        case .unknown: return "Unhandled error code"
+        }
+    }
+}
+
 public struct ApiEndpoint {
-    public var route: ApiRoute!
+    public var route: ApiRoute
     public var httpMethod: HTTPMethod = .get
-    public var contentType: HTTPContentType = .applicationJson
-    public var headerParams: [String: String] = [:]
-    public var inputJSONParams: Any? = nil
     public var httpResponseType: HTTPResponseType = .empty
     
     public init(route: ApiRoute,
                 httpMethod: HTTPMethod = .get,
-                contentType: HTTPContentType = .applicationJson,
-                headerParams: [String: String] = [:],
-                inputJSONParams: Any? = nil,
                 httpResponseType: HTTPResponseType = .empty) {
         self.route = route
         self.httpMethod = httpMethod
+        self.httpResponseType = httpResponseType
+    }
+}
+
+public struct ApiRequest {
+    public var endpoint: ApiEndpoint
+    public var contentType: HTTPContentType = .applicationJson
+    public var headerParams: [String: String] = [:]
+    public var inputJSONParams: Any? = nil
+
+    public init(endpoint: ApiEndpoint,
+                contentType: HTTPContentType = .applicationJson,
+                headerParams: [String: String] = [:],
+                inputJSONParams: Any? = nil) {
+        self.endpoint = endpoint
         self.contentType = contentType
         self.headerParams = headerParams
         self.inputJSONParams = inputJSONParams
-        self.httpResponseType = httpResponseType
     }
 }
 
@@ -136,7 +161,15 @@ public class HttpClient {
         let request = NSMutableURLRequest(url: url)
         request.httpMethod = httpMethod.rawValue
         request.setValue(contentType.rawValue, forHTTPHeaderField: "Content-Type")
-        
+
+        // Add default header params
+        for key in configuration.defaultRequestHTTPHeaders().keys {
+            if let value = configuration.defaultRequestHTTPHeaders()[key] {
+                request.setValue(value, forHTTPHeaderField: key)
+            }
+        }
+
+        // Add custom header params
         for key in headerParams.keys {
             if let value = headerParams[key] {
                 request.setValue(value, forHTTPHeaderField: key)
@@ -260,7 +293,8 @@ public class HttpClient {
     
 }
 
-extension HttpClient {
+// MARK: - Private
+private extension HttpClient {
     private func invokeDataTask(_ request: URLRequest,
                                 successCompletion: ((_ response: Any?, _ data: Data?) -> Void)?,
                                 failureCompletion: ((_ responseError: Error?) -> Void)?) {

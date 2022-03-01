@@ -24,25 +24,22 @@ public class HttpNetworkingService: NSObject {
         super.init()
         self.httpClient = HttpClient(configuration: HttpClientConfiguration())
     }
-    
-    public func executeDataRequest<T: Codable>(with endpoint: ApiEndpoint,
-                                                               inputObject: T?,
-                                                               completion: @escaping (ApiResult<T>) -> Void) {
-        httpClient.executeDataRequest(url: endpoint.route.url(),
-                                      httpMethod: endpoint.httpMethod,
-                                      contentType: endpoint.contentType,
-                                      headerParams: endpoint.headerParams,
-                                      inputJSON: endpoint.inputJSONParams,
-                                      inputObject: inputObject,
-                                      responseType: endpoint.httpResponseType,
-                                      completion: completion)
+
+    public func executeDataRequest<T: Codable>(_ request: ApiRequest, inputObject: T? = nil, completion: @escaping (ApiResult<T>) -> Void) {
+        httpClient.executeDataRequest(
+            url: request.endpoint.route.url(),
+            httpMethod: request.endpoint.httpMethod,
+            contentType: request.contentType,
+            headerParams: request.headerParams,
+            inputJSON: request.inputJSONParams,
+            inputObject: inputObject,
+            responseType: request.endpoint.httpResponseType,
+            completion: completion
+        )
     }
-    
-    public func executeDeleteRequest<T: Codable>(with endpoint: ApiEndpoint,
-                                                                 inputObject: T?,
-                                                                 outputObjectType: AnyClass?,
-                                                                 completion: @escaping (ApiResult<T>) -> Void) {
-        httpClient.executeDataRequest(url: endpoint.route.url(),
+
+    public func executeDeleteRequest<T: Codable>(_ request: ApiRequest, inputObject: T? = nil, outputObjectType: AnyClass?, completion: @escaping (ApiResult<T>) -> Void) {
+        httpClient.executeDataRequest(url: request.endpoint.route.url(),
                                       httpMethod: .delete,
                                       inputObject: inputObject,
                                       completion: completion)
@@ -60,7 +57,8 @@ class TestApiService {
     class func sampleEndpointCall(with completion: @escaping (ApiResult<User>) -> Void) {
         let service: HttpNetworkingService = HttpNetworkingService(httpClientConfiguration: HttpClientConfiguration())
         let endpoint: ApiEndpoint = ApiEndpoint(route: ApiRoute(baseUrlPath: "someBaseUrl", path: "somePath"))
-        service.executeDataRequest(with: endpoint, inputObject: nil) { (response: ApiResult<User>) in
+        let apiRequest = ApiRequest(endpoint: endpoint)
+        service.executeDataRequest(apiRequest, inputObject: nil) { (response: ApiResult<User>) in
             switch response {
             case .fulfilledEmpty:
                 // code
