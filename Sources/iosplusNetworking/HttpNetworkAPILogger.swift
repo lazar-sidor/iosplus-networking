@@ -34,6 +34,10 @@ final class HttpNetworkAPILogger: NSObject {
         }
         
         logger.verbose(loggerCategory, logNetworkRequest(request))
+
+        if let curlRequest = request?.curlRequest {
+            logger.verbose(loggerCategory, curlRequest)
+        }
     }
     
     func didReceive(_ response: HTTPURLResponse?, responseData: Data?, target: URL) {
@@ -127,5 +131,47 @@ private extension HttpNetworkAPILogger {
                 logger.verbose(category, String(describing: item))
             }
         }
+    }
+}
+
+fileprivate extension String {
+    func escapingQuotes() -> String {
+        return replacingOccurrences(of: "\"", with: "\\\"")
+    }
+}
+
+extension URLRequest {
+    var curlRequest: String? {
+        guard
+            let httpMethod = self.httpMethod,
+            let urlString = self.url?.absoluteString
+        else {
+            return nil
+        }
+
+        // Basic curl command with HTTP method
+        var components = ["curl -k -X \(httpMethod) --dump-header -"]
+
+        // Add request headers
+        if let headers = allHTTPHeaderFields {
+            components += headers.map { key, value in
+                let escapedKey = key.escapingQuotes()
+                let escapedValue = value.escapingQuotes()
+                return "-H \"\(escapedKey): \(escapedValue)\""
+            }
+        }
+
+        // Add request body
+        if let data = httpBody, let body = String(data: data, encoding: .utf8) {
+            if body.count > 0 {
+                let escapedBody = body.escapingQuotes()
+                components.append("-d \"\(escapedBody)\"")
+            }
+        }
+
+        // Add URL
+        components.append("\"\(urlString)\"")
+
+        return components.joined(separator: " ")
     }
 }
