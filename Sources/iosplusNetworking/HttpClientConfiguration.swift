@@ -25,9 +25,9 @@ public protocol HttpLoggerProtocol: AnyObject {
 }
 
 public protocol HttpClientInterface: AnyObject {
-    func defaultRequestHTTPHeaders() -> [String: String]
-    func processResponseData(_ data: Data) -> Any?
-    func processResponseErrors(_ data: Data) -> [NSError]?
+    func defaultHTTPHeaders(for request: URLRequest) -> [String: String]
+    func processResponseData(_ data: Data, _ request: URLRequest) -> Any?
+    func processResponseErrors(_ data: Data, _ request: URLRequest) -> [NSError]?
 }
 
 open class DefaultHttpClientConfiguration: HttpClientInterface, HttpLoggerProtocol {
@@ -60,15 +60,15 @@ open class DefaultHttpClientConfiguration: HttpClientInterface, HttpLoggerProtoc
     
     // MARK: - HttpClientInterface
     
-    open func defaultRequestHTTPHeaders() -> [String : String] {
+    open func defaultHTTPHeaders(for request: URLRequest) -> [String : String] {
         return [:]
     }
     
-    open func processResponseData(_ data: Data) -> Any? {
+    open func processResponseData(_ data: Data, _ request: URLRequest) -> Any? {
         return nil
     }
     
-    open func processResponseErrors(_ data: Data) -> [NSError]? {
+    open func processResponseErrors(_ data: Data, _ request: URLRequest) -> [NSError]? {
         return nil
     }
 }

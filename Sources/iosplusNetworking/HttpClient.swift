@@ -163,8 +163,8 @@ public class HttpClient {
         request.setValue(contentType.rawValue, forHTTPHeaderField: "Content-Type")
 
         // Add default header params
-        for key in configuration.defaultRequestHTTPHeaders().keys {
-            if let value = configuration.defaultRequestHTTPHeaders()[key] {
+        for key in configuration.defaultHTTPHeaders(for: request as URLRequest).keys {
+            if let value = configuration.defaultHTTPHeaders(for: request as URLRequest)[key] {
                 request.setValue(value, forHTTPHeaderField: key)
             }
         }
@@ -223,11 +223,11 @@ public class HttpClient {
                 var outputData: Data = data!
                 var customOutputError: NSError? = nil
                 do {
-                    if let processedData = self.configuration.processResponseData(data!) {
+                    if let processedData = self.configuration.processResponseData(data!, request as URLRequest) {
                         outputData = try JSONSerialization.data(withJSONObject: processedData, options: .prettyPrinted)
                     }
                     
-                    if let processedErrors = self.configuration.processResponseErrors(data!) {
+                    if let processedErrors = self.configuration.processResponseErrors(data!, request as URLRequest) {
                         customOutputError = processedErrors.first
                     }
                 } catch {
