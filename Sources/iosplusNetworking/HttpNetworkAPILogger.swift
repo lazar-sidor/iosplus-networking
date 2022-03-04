@@ -30,13 +30,11 @@ final class HttpNetworkAPILogger: NSObject {
     func willSend(_ request: URLRequest?) {
         if let request = request {
             logger.verbose(loggerCategory, request.debugDescription)
-            return
-        }
-        
-        logger.verbose(loggerCategory, logNetworkRequest(request))
+            logger.verbose(loggerCategory, logNetworkRequest(request))
 
-        if let curlRequest = request?.curlRequest {
-            logger.verbose(loggerCategory, curlRequest)
+            if let curlRequest = request.curlRequest {
+                logger.verbose(loggerCategory, curlRequest)
+            }
         }
     }
     
