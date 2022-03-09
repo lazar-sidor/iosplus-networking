@@ -369,7 +369,7 @@ private extension HttpClient {
             httpLogger.didReceive(httpResponse, responseData: data, target: request.url!)
             
             if status != HTTPStatus.ok.rawValue && status != HTTPStatus.noContent.rawValue {
-                if status == HTTPStatus.notAuthorized.rawValue {
+                if status == HTTPStatus.notAuthorized.rawValue || status == HTTPStatus.internalServerError.rawValue {
                     if completion != nil {
                         completion!(apiResponse, data, taskError)
                     }
@@ -400,7 +400,7 @@ private extension HttpClient {
             
             if status != HTTPStatus.ok.rawValue && status != HTTPStatus.noContent.rawValue {
                 
-                if status == HTTPStatus.notAuthorized.rawValue {
+                if status == HTTPStatus.notAuthorized.rawValue || status == HTTPStatus.internalServerError.rawValue {
                     if completion != nil {
                         completion!(apiResponse, data, taskError)
                     }
