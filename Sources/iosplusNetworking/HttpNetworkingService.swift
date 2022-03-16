@@ -5,7 +5,7 @@
 //  Created by Lazar Sidor on 07.01.2022.
 //
 
-import UIKit
+import Foundation
 
 public class HttpNetworkingService: NSObject {
     private var httpClient: HttpClient!

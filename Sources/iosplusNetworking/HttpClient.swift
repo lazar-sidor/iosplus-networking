@@ -5,7 +5,7 @@
 //  Created by Lazar Sidor on 04.01.2022.
 //
 
-import UIKit
+import Foundation
 
 public enum HTTPStatus: Int {
     case ok = 200
@@ -33,6 +33,10 @@ public enum HTTPStatus: Int {
         case .internalServerError:
             return "Internal Server Error"
         }
+    }
+
+    static func isValid(from response: HTTPURLResponse) -> Bool {
+        return (200...299).contains(response.statusCode)
     }
 }
 
@@ -364,17 +368,13 @@ private extension HttpClient {
         if apiResponse != nil && taskError == nil && data != nil {
             
             let httpResponse = apiResponse as! HTTPURLResponse
-            let status: NSInteger = httpResponse.statusCode
-            
             httpLogger.didReceive(httpResponse, responseData: data, target: request.url!)
-            
-            if status != HTTPStatus.ok.rawValue && status != HTTPStatus.noContent.rawValue {
-                if status == HTTPStatus.notAuthorized.rawValue || status == HTTPStatus.internalServerError.rawValue {
-                    if completion != nil {
-                        completion!(apiResponse, data, taskError)
-                    }
-                    return
+
+            if HTTPStatus.isValid(from: httpResponse) == false {
+                if completion != nil {
+                    completion!(apiResponse, data, taskError)
                 }
+                return
             }
         }
         
@@ -393,19 +393,14 @@ private extension HttpClient {
                                            taskError: Error?,
                                            completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?) -> Void)?) {
         if apiResponse != nil && taskError == nil && data != nil {
-            let httpResponse = apiResponse as! HTTPURLResponse
-            let status: NSInteger = httpResponse.statusCode
-            
+            let httpResponse = apiResponse as! HTTPURLResponse            
             httpLogger.didReceive(httpResponse, responseData: data, target: request.url!)
-            
-            if status != HTTPStatus.ok.rawValue && status != HTTPStatus.noContent.rawValue {
-                
-                if status == HTTPStatus.notAuthorized.rawValue || status == HTTPStatus.internalServerError.rawValue {
-                    if completion != nil {
-                        completion!(apiResponse, data, taskError)
-                    }
-                    return
+
+            if HTTPStatus.isValid(from: httpResponse) == false {
+                if completion != nil {
+                    completion!(apiResponse, data, taskError)
                 }
+                return
             }
         }
         

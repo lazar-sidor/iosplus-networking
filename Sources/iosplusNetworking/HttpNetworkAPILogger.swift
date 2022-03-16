@@ -5,7 +5,7 @@
 //  Created by Lazar Sidor on 18.01.2022.
 //
 
-import UIKit
+import Foundation
 
 /// Logs network activity (outgoing requests and incoming responses).
 final class HttpNetworkAPILogger: NSObject {
