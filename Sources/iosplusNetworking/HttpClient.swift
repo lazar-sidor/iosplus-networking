@@ -153,152 +153,174 @@ public class HttpClient {
         self.configuration = HttpClientConfiguration()
     }
     
-    public func executeDataRequest<T: Codable>(url: URL,
-                                               httpMethod: HTTPMethod = .get,
-                                               contentType: HTTPContentType = .applicationJson,
-                                               headerParams: [String: String] = [:],
-                                               inputJSON: Any? = nil,
-                                               inputObject: T? = nil,
-                                               responseType: HTTPResponseType = .empty,
-                                               completion: @escaping (ApiResult<T>) -> Void) {
-        
-        let request = NSMutableURLRequest(url: url)
-        request.httpMethod = httpMethod.rawValue
-        request.setValue(contentType.rawValue, forHTTPHeaderField: "Content-Type")
-
-        // Add default header params
-        for key in configuration.defaultHTTPHeaders(for: request as URLRequest).keys {
-            if let value = configuration.defaultHTTPHeaders(for: request as URLRequest)[key] {
-                request.setValue(value, forHTTPHeaderField: key)
-            }
-        }
-
-        // Add custom header params
-        for key in headerParams.keys {
-            if let value = headerParams[key] {
-                request.setValue(value, forHTTPHeaderField: key)
-            }
-        }
-        
-        if let jsonObject = inputJSON {
-            if jsonObject is [String: Any] || jsonObject is [[String: Any]] {
-                do {
-                    let body = try JSONSerialization.data(withJSONObject: jsonObject, options: [])
-                    request.httpBody = body
-                    
-                } catch {
-                    httpLogger.reportError("Error converting model class to JSON")
-                }
-            }
-        }
-        else if let dataViewObject = inputObject {
-            do {
-                let jsonEncoder = JSONEncoder()
-                jsonEncoder.dateEncodingStrategy = JSONEncoder.DateEncodingStrategy.iso8601
-                let jsonData = try jsonEncoder.encode(dataViewObject)
-                request.httpBody = jsonData
-                
-            } catch {
-                httpLogger.reportError("Error converting model class to Dictionary")
-            }
-        }
-        
-        if httpMethod == .delete {
-            invokeDeleteDataTask(request as URLRequest) { response, responseData, responseError in
-                DispatchQueue.main.async {
-                    if let responseError = responseError {
-                        completion(ApiResult.rejected(responseError))
-                    } else {
-                        completion(ApiResult.fulfilledEmpty)
-                    }
-                }
-            }
-            return
-        }
-        
-        invokeDataTask(request as URLRequest,
-                       successCompletion: { _, data in
-            if data == nil {
-                DispatchQueue.main.async {
-                    completion(ApiResult.fulfilledEmpty)
-                }
-                
-            } else {
-                var outputData: Data = data!
-                var customOutputError: NSError? = nil
-                do {
-                    if let processedData = self.configuration.processResponseData(data!, request as URLRequest) {
-                        outputData = try JSONSerialization.data(withJSONObject: processedData, options: .prettyPrinted)
-                    }
-                    
-                    if let processedErrors = self.configuration.processResponseErrors(data!, request as URLRequest) {
-                        customOutputError = processedErrors.first
-                    }
-                } catch {
-                    self.httpLogger.reportError(error.localizedDescription)
+    public func executeDataRequest<T: Codable>(
+        url: URL,
+        httpMethod: HTTPMethod = .get,
+        contentType: HTTPContentType = .applicationJson,
+        headerParams: [String: String] = [:],
+        inputJSON: Any? = nil,
+        inputObject: T? = nil,
+        responseType: HTTPResponseType = .empty,
+        completion: @escaping (ApiResult<T>) -> Void
+    ) {
+        let executionBlock = { (request: NSMutableURLRequest) in
+            if httpMethod == .delete {
+                self.invokeDeleteDataTask(request as URLRequest) { response, responseData, responseError in
                     DispatchQueue.main.async {
-                        completion(ApiResult.rejected(error))
-                    }
-                }
-                
-                if responseType == .empty {
-                    DispatchQueue.main.async {
-                        completion(ApiResult.fulfilledEmpty)
-                    }
-                }
-                else if responseType == .collection {
-                    do {
-                        let decoder = JSONDecoder()
-                        decoder.dateDecodingStrategy = JSONDecoder.DateDecodingStrategy.iso8601
-                        let apiObjects = try decoder.decode([T].self, from: outputData)
-                        
-                        DispatchQueue.main.async {
-                            completion(ApiResult.fulfilledCollection(apiObjects))
-                        }
-                        
-                    } catch {
-                        self.httpLogger.reportError(error.localizedDescription)
-                        DispatchQueue.main.async {
-                            completion(ApiResult.rejected(error))
-                        }
-                    }
-                } else if responseType == .singleItem {
-                    
-                    do {
-                        let decoder = JSONDecoder()
-                        decoder.dateDecodingStrategy = JSONDecoder.DateDecodingStrategy.iso8601
-                        let apiObject: T = try decoder.decode(T.self, from: outputData)
-                        DispatchQueue.main.async {
-                            completion(ApiResult.fulfilledSingle(apiObject))
-                        }
-                    } catch {
-                        self.httpLogger.reportError(error.localizedDescription)
-                        DispatchQueue.main.async {
-                            completion(ApiResult.rejected(error))
-                        }
-                    }
-                    
-                } else {
-                    DispatchQueue.main.async {
-                        if let responseError = customOutputError {
+                        if let responseError = responseError {
                             completion(ApiResult.rejected(responseError))
                         } else {
                             completion(ApiResult.fulfilledEmpty)
                         }
                     }
                 }
+                return
             }
-        }, failureCompletion: { apiError in
-            DispatchQueue.main.async {
-                completion(ApiResult.rejected(apiError))
-            }
-        })
+
+            self.invokeDataTask(request as URLRequest,
+                                successCompletion: { taskResponse, data in
+                if data == nil {
+                    DispatchQueue.main.async {
+                        completion(ApiResult.fulfilledEmpty)
+                    }
+
+                } else {
+                    var outputData: Data = data!
+                    var customOutputError: NSError? = nil
+                    do {
+                        if let processedData = self.configuration.processResponseData(data!, request as URLRequest, taskResponse) {
+                            outputData = try JSONSerialization.data(withJSONObject: processedData, options: .prettyPrinted)
+                        }
+
+                        if let processedErrors = self.configuration.processResponseErrors(data!, request as URLRequest) {
+                            customOutputError = processedErrors.first
+                        }
+                    } catch {
+                        self.httpLogger.reportError(error.localizedDescription)
+                        DispatchQueue.main.async {
+                            completion(ApiResult.rejected(error))
+                        }
+                    }
+
+                    if responseType == .empty {
+                        DispatchQueue.main.async {
+                            completion(ApiResult.fulfilledEmpty)
+                        }
+                    }
+                    else if responseType == .collection {
+                        do {
+                            let decoder = JSONDecoder()
+                            decoder.dateDecodingStrategy = JSONDecoder.DateDecodingStrategy.iso8601
+                            let apiObjects = try decoder.decode([T].self, from: outputData)
+
+                            DispatchQueue.main.async {
+                                completion(ApiResult.fulfilledCollection(apiObjects))
+                            }
+
+                        } catch {
+                            self.httpLogger.reportError(error.localizedDescription)
+                            DispatchQueue.main.async {
+                                completion(ApiResult.rejected(error))
+                            }
+                        }
+                    } else if responseType == .singleItem {
+
+                        do {
+                            let decoder = JSONDecoder()
+                            decoder.dateDecodingStrategy = JSONDecoder.DateDecodingStrategy.iso8601
+                            let apiObject: T = try decoder.decode(T.self, from: outputData)
+                            DispatchQueue.main.async {
+                                completion(ApiResult.fulfilledSingle(apiObject))
+                            }
+                        } catch {
+                            self.httpLogger.reportError(error.localizedDescription)
+                            DispatchQueue.main.async {
+                                completion(ApiResult.rejected(error))
+                            }
+                        }
+
+                    } else {
+                        DispatchQueue.main.async {
+                            if let responseError = customOutputError {
+                                completion(ApiResult.rejected(responseError))
+                            } else {
+                                completion(ApiResult.fulfilledEmpty)
+                            }
+                        }
+                    }
+                }
+            }, failureCompletion: { apiError in
+                DispatchQueue.main.async {
+                    completion(ApiResult.rejected(apiError))
+                }
+            })
+        }
+
+        prepareRequest(url: url, httpMethod: httpMethod, contentType: contentType, headerParams: headerParams, inputJSON: inputJSON, inputObject: inputObject, responseType: responseType) { mutableRequest in
+            executionBlock(mutableRequest)
+        }
     }
-    
 }
 
 // MARK: - Private
 private extension HttpClient {
+    private func prepareRequest<T: Codable>(
+        url: URL,
+        httpMethod: HTTPMethod,
+        contentType: HTTPContentType,
+        headerParams: [String: String],
+        inputJSON: Any?,
+        inputObject: T?,
+        responseType: HTTPResponseType, completion: ((_ mutableRequest: NSMutableURLRequest) -> Void)) {
+            let request = NSMutableURLRequest(url: url)
+            request.httpMethod = httpMethod.rawValue
+            request.setValue(contentType.rawValue, forHTTPHeaderField: "Content-Type")
+
+            let prepareRequestBlock = { [self] (headers: [String: String]) in
+                // Add default header params
+                for key in headers.keys {
+                    if let value = headers[key] {
+                        request.setValue(value, forHTTPHeaderField: key)
+                    }
+                }
+
+                // Add custom header params
+                for key in headerParams.keys {
+                    if let value = headerParams[key] {
+                        request.setValue(value, forHTTPHeaderField: key)
+                    }
+                }
+
+                if let jsonObject = inputJSON {
+                    if jsonObject is [String: Any] || jsonObject is [[String: Any]] {
+                        do {
+                            let body = try JSONSerialization.data(withJSONObject: jsonObject, options: [])
+                            request.httpBody = body
+
+                        } catch {
+                            httpLogger.reportError("Error converting model class to JSON")
+                        }
+                    }
+                }
+                else if let dataViewObject = inputObject {
+                    do {
+                        let jsonEncoder = JSONEncoder()
+                        jsonEncoder.dateEncodingStrategy = JSONEncoder.DateEncodingStrategy.iso8601
+                        let jsonData = try jsonEncoder.encode(dataViewObject)
+                        request.httpBody = jsonData
+
+                    } catch {
+                        httpLogger.reportError("Error converting model class to Dictionary")
+                    }
+                }
+            }
+
+            configuration.prepareHTTPHeaders(for: request as URLRequest) { (headers: [String: String]) in
+                prepareRequestBlock(headers)
+                completion(request)
+            }
+        }
+
     private func invokeDataTask(_ request: URLRequest,
                                 successCompletion: ((_ response: Any?, _ data: Data?) -> Void)?,
                                 failureCompletion: ((_ responseError: Error?) -> Void)?) {
@@ -369,6 +391,7 @@ private extension HttpClient {
             
             let httpResponse = apiResponse as! HTTPURLResponse
             httpLogger.didReceive(httpResponse, responseData: data, target: request.url!)
+            configuration.handleHTTPStatusCode(httpResponse.statusCode)
 
             if HTTPStatus.isValid(from: httpResponse) == false {
                 if completion != nil {
@@ -393,8 +416,9 @@ private extension HttpClient {
                                            taskError: Error?,
                                            completion: ((_ response:Any?, _ responseData: Data?, _ responseError: Error?) -> Void)?) {
         if apiResponse != nil && taskError == nil && data != nil {
-            let httpResponse = apiResponse as! HTTPURLResponse            
+            let httpResponse = apiResponse as! HTTPURLResponse
             httpLogger.didReceive(httpResponse, responseData: data, target: request.url!)
+            configuration.handleHTTPStatusCode(httpResponse.statusCode)
 
             if HTTPStatus.isValid(from: httpResponse) == false {
                 if completion != nil {

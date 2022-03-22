@@ -8,11 +8,15 @@
 import Foundation
 
 public class HttpNetworkingService: NSObject {
-    private var httpClient: HttpClient!
+    private var httpClient: HttpClient
+    private var networkReachability: NetworkReachabilityService
     
     public convenience init(httpClientConfiguration: HttpClientConfiguration) {
         self.init()
         self.httpClient = HttpClient(configuration: httpClientConfiguration)
+        self.networkReachability = NetworkReachabilityService(observer: { status in
+            httpClientConfiguration.handleNetworkReachabilityChange(status)
+        })
     }
     
     public convenience init(httpClient: HttpClient) {
@@ -21,28 +25,37 @@ public class HttpNetworkingService: NSObject {
     }
     
     public override init() {
+        let configuration = HttpClientConfiguration()
+        self.httpClient = HttpClient(configuration: configuration)
+        self.networkReachability = NetworkReachabilityService(observer: { status in
+            configuration.handleNetworkReachabilityChange(status)
+        })
         super.init()
-        self.httpClient = HttpClient(configuration: HttpClientConfiguration())
     }
 
     public func executeDataRequest<T: Codable>(_ request: ApiRequest, inputObject: T? = nil, completion: @escaping (ApiResult<T>) -> Void) {
-        httpClient.executeDataRequest(
-            url: request.endpoint.route.url(),
-            httpMethod: request.endpoint.httpMethod,
-            contentType: request.contentType,
-            headerParams: request.headerParams,
-            inputJSON: request.inputJSONParams,
-            inputObject: inputObject,
-            responseType: request.endpoint.httpResponseType,
-            completion: completion
-        )
-    }
+        let executeRequestBlock = { [self] in
+            httpClient.executeDataRequest(
+                url: request.endpoint.route.url(),
+                httpMethod: request.endpoint.httpMethod,
+                contentType: request.contentType,
+                headerParams: request.headerParams,
+                inputJSON: request.inputJSONParams,
+                inputObject: inputObject,
+                responseType: request.endpoint.httpResponseType,
+                completion: completion
+            )
+        }
 
-    public func executeDeleteRequest<T: Codable>(_ request: ApiRequest, inputObject: T? = nil, outputObjectType: AnyClass?, completion: @escaping (ApiResult<T>) -> Void) {
-        httpClient.executeDataRequest(url: request.endpoint.route.url(),
-                                      httpMethod: .delete,
-                                      inputObject: inputObject,
-                                      completion: completion)
+        networkReachability.checkApiReachability { restricted in
+            guard restricted == false else {
+                let error = NSError(domain: String(describing: HttpNetworkingService.self), code: 0, userInfo: [NSLocalizedDescriptionKey: "Network connection not available"])
+                completion(ApiResult.rejected(error))
+                return
+            }
+
+            executeRequestBlock()
+        }
     }
 }
 

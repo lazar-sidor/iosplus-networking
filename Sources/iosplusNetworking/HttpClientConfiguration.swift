@@ -25,9 +25,11 @@ public protocol HttpLoggerProtocol: AnyObject {
 }
 
 public protocol HttpClientInterface: AnyObject {
-    func defaultHTTPHeaders(for request: URLRequest) -> [String: String]
-    func processResponseData(_ data: Data, _ request: URLRequest) -> Any?
+    func prepareHTTPHeaders(for request: URLRequest, completion: ((_ headers: [String: String]) -> Void))
+    func processResponseData(_ data: Data, _ request: URLRequest, _ response: Any?) -> Any?
     func processResponseErrors(_ data: Data, _ request: URLRequest) -> [NSError]?
+    func handleHTTPStatusCode(_ code: Int)
+    func handleNetworkReachabilityChange(_ status: NetworkReachabilityMonitor.NetworkConnection)
 }
 
 open class DefaultHttpClientConfiguration: HttpClientInterface, HttpLoggerProtocol {
@@ -59,18 +61,20 @@ open class DefaultHttpClientConfiguration: HttpClientInterface, HttpLoggerProtoc
     }
     
     // MARK: - HttpClientInterface
-    
-    open func defaultHTTPHeaders(for request: URLRequest) -> [String : String] {
-        return [:]
+    open func prepareHTTPHeaders(for request: URLRequest, completion: ((_ headers: [String: String]) -> Void)) {
+        completion([:])
     }
     
-    open func processResponseData(_ data: Data, _ request: URLRequest) -> Any? {
+    open func processResponseData(_ data: Data, _ request: URLRequest, _ response: Any?) -> Any? {
         return nil
     }
     
     open func processResponseErrors(_ data: Data, _ request: URLRequest) -> [NSError]? {
         return nil
     }
+
+    open func handleHTTPStatusCode(_ code: Int) {}
+    open func handleNetworkReachabilityChange(_ status: NetworkReachabilityMonitor.NetworkConnection) {}
 }
 
 open class HttpClientConfiguration: DefaultHttpClientConfiguration {
