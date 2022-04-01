@@ -48,6 +48,9 @@ public enum HTTPMethod: String {
     case delete = "DELETE"
 }
 
+/// A dictionary of headers to apply to a `URLRequest`.
+public typealias HTTPHeaders = [String: String]
+
 public enum HTTPContentType: String {
     case applicationJson = "application/json"
 }
@@ -56,6 +59,14 @@ public enum HTTPResponseType: Int {
     case empty
     case singleItem
     case collection
+}
+
+public class HttpMultipartBody {
+    var params: HTTPHeaders?
+    var data: Data?
+    var bodyName: String = "file"
+    var fileName: String?
+    var mimeType: String?
 }
 
 public enum ApiErrorCode: LocalizedError {
@@ -92,12 +103,12 @@ public struct ApiEndpoint {
 public struct ApiRequest {
     public var endpoint: ApiEndpoint
     public var contentType: HTTPContentType = .applicationJson
-    public var headerParams: [String: String] = [:]
+    public var headerParams: HTTPHeaders = [:]
     public var inputJSONParams: Any? = nil
 
     public init(endpoint: ApiEndpoint,
                 contentType: HTTPContentType = .applicationJson,
-                headerParams: [String: String] = [:],
+                headerParams: HTTPHeaders = [:],
                 inputJSONParams: Any? = nil) {
         self.endpoint = endpoint
         self.contentType = contentType
@@ -157,7 +168,7 @@ public class HttpClient {
         url: URL,
         httpMethod: HTTPMethod = .get,
         contentType: HTTPContentType = .applicationJson,
-        headerParams: [String: String] = [:],
+        headerParams: HTTPHeaders = [:],
         inputJSON: Any? = nil,
         inputObject: T? = nil,
         responseType: HTTPResponseType = .empty,
@@ -268,7 +279,7 @@ private extension HttpClient {
         url: URL,
         httpMethod: HTTPMethod,
         contentType: HTTPContentType,
-        headerParams: [String: String],
+        headerParams: HTTPHeaders,
         inputJSON: Any?,
         inputObject: T?,
         responseType: HTTPResponseType, completion: ((_ mutableRequest: NSMutableURLRequest) -> Void)) {

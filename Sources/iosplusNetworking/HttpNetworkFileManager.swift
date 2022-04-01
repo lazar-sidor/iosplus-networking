@@ -1,5 +1,5 @@
 //
-//  NetworkFileManager.swift
+//  HttpNetworkFileManager.swift
 //  
 //
 //  Created by Lazar Sidor on 22.03.2022.
@@ -7,8 +7,39 @@
 
 import UIKit
 
-public class NetworkFileManager: NSObject {
-    public static let shared = NetworkFileManager()
+public typealias ProcessFileCompletion = (_ status: Bool, _ error: Error?) -> Void
+
+struct EncodingCharacters {
+    static let crlf = "\r\n"
+}
+
+struct BoundaryGenerator {
+    enum BoundaryType {
+        case initial, encapsulated, final
+    }
+
+    static func randomBoundary() -> String {
+        return String(format: "iosplusnetworking.boundary.%08x%08x", arc4random(), arc4random())
+    }
+
+    static func boundaryData(forBoundaryType boundaryType: BoundaryType, boundary: String) -> Data {
+        let boundaryText: String
+
+        switch boundaryType {
+        case .initial:
+            boundaryText = "--\(boundary)\(EncodingCharacters.crlf)"
+        case .encapsulated:
+            boundaryText = "\(EncodingCharacters.crlf)--\(boundary)\(EncodingCharacters.crlf)"
+        case .final:
+            boundaryText = "\(EncodingCharacters.crlf)--\(boundary)--\(EncodingCharacters.crlf)"
+        }
+
+        return boundaryText.data(using: String.Encoding.utf8, allowLossyConversion: false)!
+    }
+}
+
+public class HttpNetworkFileManager: NSObject {
+    public static let shared = HttpNetworkFileManager()
     private var kvo: NSKeyValueObservation?
     private var networkSession: URLSession?
     private var operationProgress: Float = 0.0
@@ -25,7 +56,7 @@ public class NetworkFileManager: NSObject {
         kvo?.invalidate()
     }
 
-    public func downloadFile(from url: URL, toUrl: URL?, httpAdditionalHeaders: [String: String]? = nil, completion: @escaping (_ status: Bool, _ error: Error?) -> Void) {
+    public func downloadFile(from url: URL, toUrl: URL?, httpAdditionalHeaders: HTTPHeaders? = nil, completion: @escaping ProcessFileCompletion) {
         downloadFileAsync(from: url, toUrl: toUrl) { (loadStatus: Bool, loadError: Error?) in
             DispatchQueue.main.async {
                 completion(loadStatus, loadError)
@@ -33,11 +64,8 @@ public class NetworkFileManager: NSObject {
         }
     }
 
-    public func uploadPNGImage(at url: URL, image: UIImage, httpAdditionalHeaders: [String: String]? = nil, completion: @escaping ((_ error: Error?) -> Void)) {
-        let data = image.pngData()
-        let fileName = UUID().uuidString.lowercased() + ".png"
-        let mimeType = "image/png"
-        uploadFile(at: url, data: data, fileName: fileName, mimeType: mimeType, completion: completion)
+    public func uploadFile(multipartData: HttpMultipartBody, httpMethod: HTTPMethod = .post, headers: HTTPHeaders? = nil, to: URL, completion: @escaping ProcessFileCompletion) {
+        uploadMultipartData(multipartData, httpMethod: httpMethod, headers: headers, to: to, completion: completion)
     }
 
     public func cancelCurrentOperation() {
@@ -48,8 +76,8 @@ public class NetworkFileManager: NSObject {
 }
 
 // MARK: - File Downloading
-private extension NetworkFileManager {
-    private func downloadFileAsync(from url: URL, toUrl: URL?, httpAdditionalHeaders: [String: String]? = nil, completion: @escaping (_ status: Bool, _ loadError: Error?) -> Void) {
+private extension HttpNetworkFileManager {
+    private func downloadFileAsync(from url: URL, toUrl: URL?, httpAdditionalHeaders: HTTPHeaders? = nil, completion: @escaping ProcessFileCompletion) {
         guard let destination = toUrl else {
             downloadFile(from: url, completion: completion)
             return
@@ -67,7 +95,7 @@ private extension NetworkFileManager {
         }
     }
 
-    private func downloadFile(from url: URL, destinationUrl: URL? = nil, httpAdditionalHeaders: [String: String]? = nil, completion: @escaping (_ status: Bool, _ saveError: Error?) -> Void) {
+    private func downloadFile(from url: URL, destinationUrl: URL? = nil, httpAdditionalHeaders: [String: String]? = nil, completion: @escaping ProcessFileCompletion) {
         updateOperationStatus(progress: 0.0, error: nil, finished: false)
 
         let config = URLSessionConfiguration.default
@@ -118,54 +146,62 @@ private extension NetworkFileManager {
 }
 
 // MARK: - File Uploading
-private extension NetworkFileManager {
-    func uploadFile(at url: URL, data: Data?, fileName: String, mimeType: String, httpAdditionalHeaders: [String: String]? = nil, completion: @escaping ((_ error: Error?) -> Void)) {
+private extension HttpNetworkFileManager {
+    func uploadMultipartData(_ multipartData: HttpMultipartBody, httpMethod: HTTPMethod, headers: HTTPHeaders?, to url: URL, completion: @escaping ProcessFileCompletion) {
         updateOperationStatus(progress: 0.0, error: nil, finished: false)
         var request = URLRequest(url: url)
-        // generate boundary string using a unique per-app string
-        let boundary = UUID().uuidString.lowercased()
+        let boundary = BoundaryGenerator.randomBoundary()
+        let fileName = multipartData.fileName ?? UUID().uuidString.lowercased()
+        let config = URLSessionConfiguration.default
+        let mimeType = multipartData.mimeType ?? "application/octet-stream"
 
-        request.httpMethod = "POST"
+        request.httpMethod = httpMethod.rawValue
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
 
-        if let headers =  httpAdditionalHeaders {
+        if let headers = headers {
+            config.httpAdditionalHeaders = headers
             for key in headers.keys {
                 request.setValue(headers[key], forHTTPHeaderField: key)
             }
         }
 
-        var body = Data()
-        body.append("--\(boundary)\r\n".data(using: String.Encoding.utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: String.Encoding.utf8)!)
-        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: String.Encoding.utf8)!)
-        if let data = data {
-            body.append(data)
+        var params = ""
+        if let paramHeaders = multipartData.params {
+            for (key, value) in paramHeaders {
+                params += "\(key): \(value)\(EncodingCharacters.crlf)"
+            }
         }
 
-        var postData = String()
-        postData += "\r\n"
-        postData += "\r\n--\(boundary)--\r\n"
-        body.append(postData.data(using: String.Encoding.utf8)!)
+        var body = Data()
+        if params.isEmpty == false {
+            body.append(BoundaryGenerator.boundaryData(forBoundaryType: .initial, boundary: boundary))
+            body.append(params.data(using: String.Encoding.utf8)!)
+            body.append("\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
+            body.append(BoundaryGenerator.boundaryData(forBoundaryType: .encapsulated, boundary: boundary))
+        } else {
+            body.append(BoundaryGenerator.boundaryData(forBoundaryType: .initial, boundary: boundary))
+        }
+
+        body.append("Content-Disposition: form-data; name=\"\(multipartData.bodyName)\"; filename=\"\(fileName)\"\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
+        body.append("Content-Type: \(mimeType)\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
+        if let data = multipartData.data { body.append(data) }
+        body.append("\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
+        body.append(BoundaryGenerator.boundaryData(forBoundaryType: .final, boundary: boundary))
+
         request.httpBody = body
 
-        let config = URLSessionConfiguration.default
-        if let httpAdditionalHeaders = httpAdditionalHeaders {
-            config.httpAdditionalHeaders = httpAdditionalHeaders
-        }
-
         networkSession = URLSession(configuration: config, delegate: nil, delegateQueue: nil)
-
         let task = networkSession!.dataTask(with: request) { [self] (data, response, errorReceived) in
             guard
                 let httpURLResponse = response as? HTTPURLResponse, httpURLResponse.statusCode == 200,
                 errorReceived == nil
             else {
                 updateOperationStatus(progress: 0.0, error: errorReceived, finished: true)
-                completion(errorReceived)
+                completion(false, errorReceived)
                 return
             }
 
-            completion(errorReceived)
+            completion(true, errorReceived)
         }
 
         kvo = task.progress.observe(\.fractionCompleted) { [self] progress, _ in
@@ -174,5 +210,4 @@ private extension NetworkFileManager {
 
         task.resume()
     }
-
 }

@@ -9,18 +9,18 @@ import Foundation
 import SystemConfiguration
 import CoreTelephony
 
-public typealias NetworkReachabilityServiceObserver = ((_ status: NetworkReachabilityMonitor.NetworkConnection) -> Void)?
+public typealias HttpNetworkReachabilityServiceObserver = ((_ status: HttpNetworkReachabilityMonitor.NetworkConnection) -> Void)?
 
-public class NetworkReachabilityService: NSObject {
-    public var status: NetworkReachabilityMonitor.NetworkConnection = .unavailable
+public class HttpNetworkReachabilityService: NSObject {
+    public var status: HttpNetworkReachabilityMonitor.NetworkConnection = .unavailable
     public var currentCellularDataState: CTCellularDataRestrictedState = .restrictedStateUnknown
-    private var observerCallback: NetworkReachabilityServiceObserver?
+    private var observerCallback: HttpNetworkReachabilityServiceObserver?
 
     public override init() {
         super.init()
     }
 
-    public convenience init(observer: NetworkReachabilityServiceObserver) {
+    public convenience init(observer: HttpNetworkReachabilityServiceObserver) {
         self.init()
         self.observerCallback = observer
 
@@ -31,7 +31,7 @@ public class NetworkReachabilityService: NSObject {
             return
         }
 
-        let reachability = NetworkReachabilityMonitor.init(reachabilityRef: ref)
+        let reachability = HttpNetworkReachabilityMonitor.init(reachabilityRef: ref)
         NotificationCenter.default.addObserver(self, selector: #selector(reachabilityChanged(note:)), name: .reachabilityChanged, object: reachability)
 
         let cellularData = CTCellularData()
@@ -61,7 +61,7 @@ public class NetworkReachabilityService: NSObject {
     //MARK: - Private
 
     @objc private func reachabilityChanged(note: Notification) {
-        let reachability = note.object as! NetworkReachabilityMonitor
+        let reachability = note.object as! HttpNetworkReachabilityMonitor
         status = reachability.connection
 
         if let observerCallback = observerCallback {

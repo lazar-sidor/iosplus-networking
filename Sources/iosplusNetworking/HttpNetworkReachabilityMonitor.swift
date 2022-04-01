@@ -43,10 +43,10 @@ public extension Notification.Name {
     static let reachabilityChanged = Notification.Name("reachabilityChanged")
 }
 
-public class NetworkReachabilityMonitor {
+public class HttpNetworkReachabilityMonitor {
 
-    public typealias NetworkReachable = (NetworkReachabilityMonitor) -> ()
-    public typealias NetworkUnreachable = (NetworkReachabilityMonitor) -> ()
+    public typealias NetworkReachable = (HttpNetworkReachabilityMonitor) -> ()
+    public typealias NetworkUnreachable = (HttpNetworkReachabilityMonitor) -> ()
 
     @available(*, unavailable, renamed: "Connection")
     public enum NetworkStatus: CustomStringConvertible {
@@ -167,7 +167,7 @@ public class NetworkReachabilityMonitor {
     }
 }
 
-public extension NetworkReachabilityMonitor {
+public extension HttpNetworkReachabilityMonitor {
 
     // MARK: - *** Notifier methods ***
     func startNotifier() throws {
@@ -253,7 +253,7 @@ public extension NetworkReachabilityMonitor {
     }
 }
 
-fileprivate extension NetworkReachabilityMonitor {
+fileprivate extension HttpNetworkReachabilityMonitor {
 
     func setReachabilityFlags() throws {
         try reachabilitySerialQueue.sync { [unowned self] in
@@ -282,7 +282,7 @@ fileprivate extension NetworkReachabilityMonitor {
 
 extension SCNetworkReachabilityFlags {
 
-    typealias Connection = NetworkReachabilityMonitor.NetworkConnection
+    typealias Connection = HttpNetworkReachabilityMonitor.NetworkConnection
 
     var connection: Connection {
         guard isReachableFlagSet else { return .unavailable }
@@ -399,8 +399,8 @@ extension SCNetworkReachabilityFlags {
  - still allow for automatic stopping of the notifier on `deinit`.
  */
 private class ReachabilityWeakifier {
-    weak var reachability: NetworkReachabilityMonitor?
-    init(reachability: NetworkReachabilityMonitor) {
+    weak var reachability: HttpNetworkReachabilityMonitor?
+    init(reachability: HttpNetworkReachabilityMonitor) {
         self.reachability = reachability
     }
 }

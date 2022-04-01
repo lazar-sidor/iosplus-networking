@@ -9,12 +9,12 @@ import Foundation
 
 public class HttpNetworkingService: NSObject {
     private var httpClient: HttpClient
-    private var networkReachability: NetworkReachabilityService
+    private var networkReachability: HttpNetworkReachabilityService
     
     public convenience init(httpClientConfiguration: HttpClientConfiguration) {
         self.init()
         self.httpClient = HttpClient(configuration: httpClientConfiguration)
-        self.networkReachability = NetworkReachabilityService(observer: { status in
+        self.networkReachability = HttpNetworkReachabilityService(observer: { status in
             httpClientConfiguration.handleNetworkReachabilityChange(status)
         })
     }
@@ -27,7 +27,7 @@ public class HttpNetworkingService: NSObject {
     public override init() {
         let configuration = HttpClientConfiguration()
         self.httpClient = HttpClient(configuration: configuration)
-        self.networkReachability = NetworkReachabilityService(observer: { status in
+        self.networkReachability = HttpNetworkReachabilityService(observer: { status in
             configuration.handleNetworkReachabilityChange(status)
         })
         super.init()
