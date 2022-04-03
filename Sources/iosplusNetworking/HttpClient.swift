@@ -62,11 +62,11 @@ public enum HTTPResponseType: Int {
 }
 
 public class HttpMultipartBody: NSObject {
-    var params: HTTPHeaders?
-    var data: Data?
-    var bodyName: String = "file"
-    var fileName: String?
-    var mimeType: String?
+    public var params: HTTPHeaders?
+    public var data: Data?
+    public var bodyName: String = "file"
+    public var fileName: String?
+    public var mimeType: String?
 
     public override init() {
         super.init()
@@ -122,15 +122,15 @@ public struct ApiRequest {
 }
 
 public struct ApiRoute {
-    var baseUrl: URL!
-    var path: String!
+    private var baseUrl: URL!
+    private var path: String!
     
-    public init(baseUrlPath: String, path:String) {
+    public init(baseUrlPath: String, path: String) {
         self.baseUrl = URL.init(string: baseUrlPath)
         self.path = path
     }
     
-    func url() -> URL {
+    public func url() -> URL {
         return baseUrl.appendingPathComponent(path)
     }
 }
