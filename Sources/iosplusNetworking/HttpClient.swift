@@ -61,12 +61,16 @@ public enum HTTPResponseType: Int {
     case collection
 }
 
-public class HttpMultipartBody {
+public class HttpMultipartBody: NSObject {
     var params: HTTPHeaders?
     var data: Data?
     var bodyName: String = "file"
     var fileName: String?
     var mimeType: String?
+
+    public override init() {
+        super.init()
+    }
 }
 
 public enum ApiErrorCode: LocalizedError {

@@ -11,6 +11,10 @@ public class HttpNetworkingService: NSObject {
     private var httpClient: HttpClient
     private var networkReachability: HttpNetworkReachabilityService
     
+    public var httpConfiguration: HttpClientConfiguration {
+        httpClient.configuration
+    }
+
     public convenience init(httpClientConfiguration: HttpClientConfiguration) {
         self.init()
         self.httpClient = HttpClient(configuration: httpClientConfiguration)
