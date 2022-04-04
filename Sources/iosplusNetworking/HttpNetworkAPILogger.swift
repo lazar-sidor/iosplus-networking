@@ -165,6 +165,11 @@ extension URLRequest {
                 let escapedBody = body.escapingQuotes()
                 components.append("-d \"\(escapedBody)\"")
             }
+        } else if let data = httpBody, let body = String(data: data, encoding: .unicode) {
+            if body.count > 0 {
+                let escapedBody = body.escapingQuotes()
+                components.append("-d \"\(escapedBody)\"")
+            }
         }
 
         // Add URL
