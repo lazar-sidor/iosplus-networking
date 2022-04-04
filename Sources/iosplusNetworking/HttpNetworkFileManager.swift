@@ -175,7 +175,8 @@ private extension HttpNetworkFileManager {
 
             body.append(bodyContent.data(using: .utf8, allowLossyConversion: false)!)
             if let data = part.data {
-                body.append(data)
+                //body.append(data)
+                body.append("***BODY_HERE***".data(using: .utf8))
             }
         }
 
