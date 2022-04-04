@@ -185,6 +185,11 @@ private extension HttpNetworkFileManager {
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
 
+        if let curlRequest = request.curlRequest {
+            print("Starting request:")
+            print(curlRequest)
+        }
+
         networkSession = URLSession(configuration: config, delegate: nil, delegateQueue: nil)
         let task = networkSession!.dataTask(with: request) { [self] (data, response, errorReceived) in
             guard
@@ -201,11 +206,6 @@ private extension HttpNetworkFileManager {
 
         kvo = task.progress.observe(\.fractionCompleted) { [self] progress, _ in
             self.updateOperationStatus(progress: Float(progress.fractionCompleted), error: nil, finished: false)
-        }
-
-        if let curlRequest = request.curlRequest {
-            print("Starting request:")
-            print(curlRequest)
         }
         
         task.resume()
