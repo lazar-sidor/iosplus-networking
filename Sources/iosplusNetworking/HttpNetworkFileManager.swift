@@ -160,14 +160,6 @@ private extension HttpNetworkFileManager {
         }
 
         var body = Data()
-        if let paramHeaders = multipartData.params {
-            for (key, value) in paramHeaders {
-                body.append(BoundaryGenerator.boundaryData(forBoundaryType: .initial, boundary: boundary))
-                body.append("Content-Disposition: form-data; name=\"\(key)\"".data(using: String.Encoding.utf8)!)
-                body.append("\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)\(value)\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
-            }
-        }
-
         if let fileParts = multipartData.dataParts {
             for part in fileParts {
                 let mimeType = part.mimeType ?? "application/octet-stream"
@@ -179,6 +171,14 @@ private extension HttpNetworkFileManager {
 
                 if let data = part.data { body.append(data) }
                 body.append(BoundaryGenerator.boundaryData(forBoundaryType: .final, boundary: boundary))
+            }
+        }
+        
+        if let paramHeaders = multipartData.params {
+            for (key, value) in paramHeaders {
+                body.append(BoundaryGenerator.boundaryData(forBoundaryType: .initial, boundary: boundary))
+                body.append("Content-Disposition: form-data; name=\"\(key)\"".data(using: String.Encoding.utf8)!)
+                body.append("\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)\(value)\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
             }
         }
 
