@@ -147,7 +147,7 @@ private extension HttpNetworkFileManager {
 
 // MARK: - File Uploading
 private extension HttpNetworkFileManager {
-    func uploadMultipartData(_ multipartData: HttpMultipartBody, httpMethod: HTTPMethod, headers: HTTPHeaders?, to url: URL, completion: @escaping ProcessFileCompletion) {
+    func uploadMultipartData(_ multipartData: HttpMultipartBody, httpMethod: HTTPMethod, headers: HTTPHeaders?, to url: URL, enableLogging: Bool = false, completion: @escaping ProcessFileCompletion) {
         updateOperationStatus(progress: 0.0, error: nil, finished: false)
 
         let boundary = BoundaryGenerator.randomBoundary()
@@ -186,8 +186,10 @@ private extension HttpNetworkFileManager {
         request.httpBody = body
 
         if let curlRequest = request.curlRequest {
-            print("Starting request:")
-            print(curlRequest)
+            if enableLogging {
+                print("Starting request:")
+                print(curlRequest)
+            }
         }
 
         networkSession = URLSession(configuration: config, delegate: nil, delegateQueue: nil)
