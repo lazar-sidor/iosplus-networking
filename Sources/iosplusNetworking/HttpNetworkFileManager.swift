@@ -160,28 +160,30 @@ private extension HttpNetworkFileManager {
             }
         }
 
-        var bodyContent = ""
+        var body = Data()
         for part in multipartData.dataParts {
+            var bodyContent = ""
             bodyContent.append(BoundaryGenerator.boundaryString(forBoundaryType: .initial, boundary: boundary))
             bodyContent.append("Content-Disposition: form-data; name=\"\(part.key!)\"")
 
             if part.type == .text {
                 bodyContent.append("\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)\(part.value!)\(EncodingCharacters.crlf)")
             } else {
-                if let data = part.data {
-                    let fileContent = String(data: data, encoding: .utf8)!
-                    bodyContent.append("; filename=\"\(part.fileName)\"\(EncodingCharacters.crlf)")
-                    bodyContent.append("Content-Type: \"\(part.mimeType)\"\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)")
-                    bodyContent.append(fileContent)
-                }
+                bodyContent.append("; filename=\"\(part.fileName)\"\(EncodingCharacters.crlf)")
+                bodyContent.append("Content-Type: \"\(part.mimeType)\"\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)")
+            }
+
+            body.append(bodyContent.data(using: .utf8, allowLossyConversion: false)!)
+            if let data = part.data {
+                body.append(data)
             }
         }
 
-        bodyContent.append(BoundaryGenerator.boundaryString(forBoundaryType: .final, boundary: boundary))
+        body.append(BoundaryGenerator.boundaryString(forBoundaryType: .final, boundary: boundary).data(using: .utf8, allowLossyConversion: false)!)
 
         request.httpMethod = httpMethod.rawValue
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.httpBody = bodyContent.data(using: .utf8, allowLossyConversion: false)
+        request.httpBody = body
 
         networkSession = URLSession(configuration: config, delegate: nil, delegateQueue: nil)
         let task = networkSession!.dataTask(with: request) { [self] (data, response, errorReceived) in
