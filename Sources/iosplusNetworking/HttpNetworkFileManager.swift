@@ -22,7 +22,7 @@ struct BoundaryGenerator {
         return String(format: "iosplusnetworking.boundary.%08x%08x", arc4random(), arc4random())
     }
 
-    static func boundaryData(forBoundaryType boundaryType: BoundaryType, boundary: String) -> Data {
+    static func boundaryString(forBoundaryType boundaryType: BoundaryType, boundary: String) -> String {
         let boundaryText: String
 
         switch boundaryType {
@@ -34,7 +34,7 @@ struct BoundaryGenerator {
             boundaryText = "\(EncodingCharacters.crlf)--\(boundary)--\(EncodingCharacters.crlf)"
         }
 
-        return boundaryText.data(using: String.Encoding.utf8, allowLossyConversion: false)!
+        return boundaryText
     }
 }
 
@@ -149,6 +149,7 @@ private extension HttpNetworkFileManager {
 private extension HttpNetworkFileManager {
     func uploadMultipartData(_ multipartData: HttpMultipartBody, httpMethod: HTTPMethod, headers: HTTPHeaders?, to url: URL, completion: @escaping ProcessFileCompletion) {
         updateOperationStatus(progress: 0.0, error: nil, finished: false)
+
         let boundary = BoundaryGenerator.randomBoundary()
         let config = URLSessionConfiguration.default
         var request = URLRequest(url: url)
@@ -159,32 +160,28 @@ private extension HttpNetworkFileManager {
             }
         }
 
-        var body = Data()
-        if let fileParts = multipartData.dataParts {
-            for part in fileParts {
-                let mimeType = part.mimeType ?? "application/octet-stream"
-                let fileName = part.fileName ?? UUID().uuidString.lowercased()
-                body.append(BoundaryGenerator.boundaryData(forBoundaryType: .initial, boundary: boundary))
-                body.append("Content-Disposition: form-data; name=\"\(part.bodyName)\"; filename=\"\(fileName)\"\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
-                body.append("\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
-                body.append("Content-Type: \(mimeType)\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
+        var bodyContent = ""
+        for part in multipartData.dataParts {
+            bodyContent.append(BoundaryGenerator.boundaryString(forBoundaryType: .initial, boundary: boundary))
+            bodyContent.append("Content-Disposition: form-data; name=\"\(part.key!)\"")
 
-                if let data = part.data { body.append(data) }
-                body.append(BoundaryGenerator.boundaryData(forBoundaryType: .final, boundary: boundary))
+            if part.type == .text {
+                bodyContent.append("\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)\(part.value!)\(EncodingCharacters.crlf)")
+            } else {
+                if let data = part.data {
+                    let fileContent = String(data: data, encoding: .utf8)!
+                    bodyContent.append("; filename=\"\(part.fileName)\"\(EncodingCharacters.crlf)")
+                    bodyContent.append("Content-Type: \"\(part.mimeType)\"\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)")
+                    bodyContent.append(fileContent)
+                }
             }
         }
-        
-        if let paramHeaders = multipartData.params {
-            for (key, value) in paramHeaders {
-                body.append(BoundaryGenerator.boundaryData(forBoundaryType: .initial, boundary: boundary))
-                body.append("Content-Disposition: form-data; name=\"\(key)\"".data(using: String.Encoding.utf8)!)
-                body.append("\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)\(value)\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
-            }
-        }
+
+        bodyContent.append(BoundaryGenerator.boundaryString(forBoundaryType: .final, boundary: boundary))
 
         request.httpMethod = httpMethod.rawValue
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body
+        request.httpBody = bodyContent.data(using: .utf8, allowLossyConversion: false)
 
         networkSession = URLSession(configuration: config, delegate: nil, delegateQueue: nil)
         let task = networkSession!.dataTask(with: request) { [self] (data, response, errorReceived) in

@@ -63,18 +63,48 @@ public enum HTTPResponseType: Int {
 
 public class HttpMultipartData: NSObject {
     public var data: Data?
-    public var bodyName: String = "file"
-    public var fileName: String?
-    public var mimeType: String?
+    public var key: String?
+    public var value: String?
+    public var fileName: String
+    public var mimeType: String
+    public var type: HttpMultipartBody.PartType?
+
+    public convenience init(key: String, value: String) {
+        self.init()
+        self.type = .text
+        self.key = key
+        self.value = value
+    }
+
+    public convenience init(data: Data, fileName: String?, mimeType: String?, key: String) {
+        self.init()
+        self.type = .file
+        self.data = data
+        self.key = key
+
+        if let mimeType = mimeType {
+            self.mimeType = mimeType
+        }
+
+        if let fileName = fileName {
+            self.fileName = fileName
+        }
+    }
 
     public override init() {
+        self.fileName = UUID().uuidString.lowercased()
+        self.mimeType = "application/octet-stream"
         super.init()
     }
 }
 
 public class HttpMultipartBody: NSObject {
-    public var params: HTTPHeaders?
-    public var dataParts: [HttpMultipartData]?
+    public enum PartType: String {
+        case text
+        case file
+    }
+
+    public var dataParts: [HttpMultipartData] = []
 
     public override init() {
         super.init()
