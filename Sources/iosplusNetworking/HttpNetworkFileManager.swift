@@ -170,7 +170,7 @@ private extension HttpNetworkFileManager {
                 bodyContent.append("\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)\(part.value!)\(EncodingCharacters.crlf)")
             } else {
                 bodyContent.append("; filename=\"\(part.fileName)\"\(EncodingCharacters.crlf)")
-                bodyContent.append("Content-Type: \"\(part.mimeType)\"\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)")
+                bodyContent.append("Content-Type: \(part.mimeType)\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)")
             }
 
             body.append(bodyContent.data(using: .utf8, allowLossyConversion: false)!)
@@ -203,6 +203,11 @@ private extension HttpNetworkFileManager {
             self.updateOperationStatus(progress: Float(progress.fractionCompleted), error: nil, finished: false)
         }
 
+        if let curlRequest = request.curlRequest {
+            print("Starting request:")
+            print(curlRequest)
+        }
+        
         task.resume()
     }
 }

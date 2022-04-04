@@ -139,7 +139,7 @@ fileprivate extension String {
 }
 
 extension URLRequest {
-    var curlRequest: String? {
+    public var curlRequest: String? {
         guard
             let httpMethod = self.httpMethod,
             let urlString = self.url?.absoluteString
