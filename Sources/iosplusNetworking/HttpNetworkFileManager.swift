@@ -64,8 +64,8 @@ public class HttpNetworkFileManager: NSObject {
         }
     }
 
-    public func uploadFile(multipartData: HttpMultipartBody, httpMethod: HTTPMethod = .post, headers: HTTPHeaders? = nil, to: URL, completion: @escaping ProcessFileCompletion) {
-        uploadMultipartData(multipartData, httpMethod: httpMethod, headers: headers, to: to, completion: completion)
+    public func uploadFile(multipartData: HttpMultipartBody, httpMethod: HTTPMethod = .post, headers: HTTPHeaders? = nil, to: URL, enableLogging: Bool = false, completion: @escaping ProcessFileCompletion) {
+        uploadMultipartData(multipartData, httpMethod: httpMethod, headers: headers, to: to, enableLogging: enableLogging, completion: completion)
     }
 
     public func cancelCurrentOperation() {
@@ -147,7 +147,7 @@ private extension HttpNetworkFileManager {
 
 // MARK: - File Uploading
 private extension HttpNetworkFileManager {
-    func uploadMultipartData(_ multipartData: HttpMultipartBody, httpMethod: HTTPMethod, headers: HTTPHeaders?, to url: URL, enableLogging: Bool = false, completion: @escaping ProcessFileCompletion) {
+    func uploadMultipartData(_ multipartData: HttpMultipartBody, httpMethod: HTTPMethod, headers: HTTPHeaders?, to url: URL, enableLogging: Bool, completion: @escaping ProcessFileCompletion) {
         updateOperationStatus(progress: 0.0, error: nil, finished: false)
 
         let boundary = BoundaryGenerator.randomBoundary()
