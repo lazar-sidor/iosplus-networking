@@ -149,15 +149,9 @@ private extension HttpNetworkFileManager {
 private extension HttpNetworkFileManager {
     func uploadMultipartData(_ multipartData: HttpMultipartBody, httpMethod: HTTPMethod, headers: HTTPHeaders?, to url: URL, completion: @escaping ProcessFileCompletion) {
         updateOperationStatus(progress: 0.0, error: nil, finished: false)
-        var request = URLRequest(url: url)
         let boundary = BoundaryGenerator.randomBoundary()
-        let fileName = multipartData.fileName ?? UUID().uuidString.lowercased()
         let config = URLSessionConfiguration.default
-        let mimeType = multipartData.mimeType ?? "application/octet-stream"
-
-        request.httpMethod = httpMethod.rawValue
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-
+        var request = URLRequest(url: url)
         if let headers = headers {
             config.httpAdditionalHeaders = headers
             for key in headers.keys {
@@ -165,29 +159,31 @@ private extension HttpNetworkFileManager {
             }
         }
 
-        var params = ""
+        var body = Data()
         if let paramHeaders = multipartData.params {
             for (key, value) in paramHeaders {
-                params += "\(key): \(value)\(EncodingCharacters.crlf)"
+                body.append(BoundaryGenerator.boundaryData(forBoundaryType: .initial, boundary: boundary))
+                body.append("Content-Disposition: form-data; name=\"\(key)\"".data(using: String.Encoding.utf8)!)
+                body.append("\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)\(value)\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
             }
         }
 
-        var body = Data()
-        if params.isEmpty == false {
-            body.append(BoundaryGenerator.boundaryData(forBoundaryType: .initial, boundary: boundary))
-            body.append(params.data(using: String.Encoding.utf8)!)
-            body.append("\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
-            body.append(BoundaryGenerator.boundaryData(forBoundaryType: .encapsulated, boundary: boundary))
-        } else {
-            body.append(BoundaryGenerator.boundaryData(forBoundaryType: .initial, boundary: boundary))
+        if let fileParts = multipartData.dataParts {
+            for part in fileParts {
+                let mimeType = part.mimeType ?? "application/octet-stream"
+                let fileName = part.fileName ?? UUID().uuidString.lowercased()
+                body.append(BoundaryGenerator.boundaryData(forBoundaryType: .initial, boundary: boundary))
+                body.append("Content-Disposition: form-data; name=\"\(part.bodyName)\"; filename=\"\(fileName)\"\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
+                body.append("\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
+                body.append("Content-Type: \(mimeType)\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
+
+                if let data = part.data { body.append(data) }
+                body.append(BoundaryGenerator.boundaryData(forBoundaryType: .final, boundary: boundary))
+            }
         }
 
-        body.append("Content-Disposition: form-data; name=\"\(multipartData.bodyName)\"; filename=\"\(fileName)\"\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
-        body.append("Content-Type: \(mimeType)\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
-        if let data = multipartData.data { body.append(data) }
-        body.append("\(EncodingCharacters.crlf)".data(using: String.Encoding.utf8)!)
-        body.append(BoundaryGenerator.boundaryData(forBoundaryType: .final, boundary: boundary))
-
+        request.httpMethod = httpMethod.rawValue
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.httpBody = body
 
         networkSession = URLSession(configuration: config, delegate: nil, delegateQueue: nil)

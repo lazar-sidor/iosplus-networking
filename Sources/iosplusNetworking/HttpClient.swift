@@ -61,12 +61,20 @@ public enum HTTPResponseType: Int {
     case collection
 }
 
-public class HttpMultipartBody: NSObject {
-    public var params: HTTPHeaders?
+public class HttpMultipartData: NSObject {
     public var data: Data?
     public var bodyName: String = "file"
     public var fileName: String?
     public var mimeType: String?
+
+    public override init() {
+        super.init()
+    }
+}
+
+public class HttpMultipartBody: NSObject {
+    public var params: HTTPHeaders?
+    public var dataParts: [HttpMultipartData]?
 
     public override init() {
         super.init()
