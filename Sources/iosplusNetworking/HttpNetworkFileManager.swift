@@ -164,19 +164,18 @@ private extension HttpNetworkFileManager {
         for part in multipartData.dataParts {
             var bodyContent = ""
             bodyContent.append(BoundaryGenerator.boundaryString(forBoundaryType: .initial, boundary: boundary))
-            bodyContent.append("Content-Disposition: form-data; name=\"\(part.key!)\"")
 
             if part.type == .text {
+                bodyContent.append("Content-Disposition: form-data; name=\"\(part.key!)\"")
                 bodyContent.append("\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)\(part.value!)\(EncodingCharacters.crlf)")
             } else {
-                bodyContent.append("; filename=\"\(part.fileName)\"\(EncodingCharacters.crlf)")
+                bodyContent.append("Content-Disposition: form-data; name=\"\(part.key!)\"; filename=\"\(part.fileName)\"\(EncodingCharacters.crlf)")
                 bodyContent.append("Content-Type: \(part.mimeType)\(EncodingCharacters.crlf)\(EncodingCharacters.crlf)")
             }
 
             body.append(bodyContent.data(using: .utf8, allowLossyConversion: false)!)
             if let data = part.data {
-                //body.append(data)
-                body.append("***BODY_HERE***".data(using: .utf8)!)
+                body.append(data)
             }
         }
 
@@ -188,7 +187,7 @@ private extension HttpNetworkFileManager {
 
         if let curlRequest = request.curlRequest {
             if enableLogging {
-                print("Starting request:")
+                print("Starting multipart upload request:")
                 print(curlRequest)
             }
         }

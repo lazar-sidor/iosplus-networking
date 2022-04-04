@@ -106,6 +106,11 @@ public class HttpMultipartBody: NSObject {
 
     public var dataParts: [HttpMultipartData] = []
 
+    convenience init(parts: [HttpMultipartData]) {
+        self.init()
+        self.dataParts = parts
+    }
+
     public override init() {
         super.init()
     }
