@@ -199,7 +199,12 @@ private extension HttpNetworkFileManager {
                 errorReceived == nil
             else {
                 updateOperationStatus(progress: 0.0, error: errorReceived, finished: true)
-                completion(false, errorReceived)
+                var uploadErrorMessage = errorReceived
+                if uploadErrorMessage ==  nil {
+                    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                    uploadErrorMessage = NSError(domain: String(describing: HttpNetworkFileManager.self), code: status, userInfo: [NSLocalizedDescriptionKey: "Internal error with code: \(status)"])
+                }
+                completion(false, uploadErrorMessage)
                 return
             }
 
