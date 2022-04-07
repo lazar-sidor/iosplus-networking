@@ -194,10 +194,12 @@ private extension HttpNetworkFileManager {
 
         networkSession = URLSession(configuration: config, delegate: nil, delegateQueue: nil)
         let task = networkSession!.dataTask(with: request) { [self] (data, response, errorReceived) in
-            guard
-                let httpURLResponse = response as? HTTPURLResponse, httpURLResponse.statusCode == 200,
-                errorReceived == nil
-            else {
+            var isHttpStatusValid = true
+            if let httpURLResponse = response as? HTTPURLResponse {
+                isHttpStatusValid = HTTPStatus.isValid(from: httpURLResponse)
+            }
+            
+            guard response != nil, isHttpStatusValid, errorReceived == nil else {
                 updateOperationStatus(progress: 0.0, error: errorReceived, finished: true)
                 var uploadErrorMessage = errorReceived
                 if uploadErrorMessage ==  nil {
