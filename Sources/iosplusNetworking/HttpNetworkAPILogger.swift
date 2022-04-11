@@ -29,11 +29,16 @@ final class HttpNetworkAPILogger: NSObject {
     
     func willSend(_ request: URLRequest?) {
         if let request = request {
-            logger.verbose(loggerCategory, request.debugDescription)
-            logger.verbose(loggerCategory, logNetworkRequest(request))
+            if isVerbose {
+                logger.verbose(loggerCategory, request.debugDescription)
+                logger.verbose(loggerCategory, logNetworkRequest(request))
 
-            if let curlRequest = request.curlRequest {
-                logger.verbose(loggerCategory, curlRequest)
+                if let curlRequest = request.curlRequest {
+                    logger.verbose(loggerCategory, curlRequest)
+                }
+            } else {
+                logger.error(loggerCategory, request.debugDescription)
+                logger.error(loggerCategory, logNetworkRequest(request))
             }
         }
     }
@@ -47,7 +52,9 @@ final class HttpNetworkAPILogger: NSObject {
     }
     
     private func outputItems(_ items: String) {
-        logger.verbose(loggerCategory, items)
+        if isVerbose {
+            logger.verbose(loggerCategory, items)
+        }
     }
 }
 
