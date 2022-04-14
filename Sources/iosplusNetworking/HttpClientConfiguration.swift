@@ -25,7 +25,7 @@ public protocol HttpLoggerProtocol: AnyObject {
 }
 
 public protocol HttpClientInterface: AnyObject {
-    func prepareHTTPHeaders(for request: URLRequest, completion: ((_ headers: HTTPHeaders) -> Void))
+    func prepareHTTPHeaders(for request: URLRequest, completion: @escaping ((_ headers: HTTPHeaders) -> Void))
     func processResponseData(_ data: Data, _ request: URLRequest, _ response: Any?) -> Any?
     func processResponseErrors(_ data: Data, _ request: URLRequest) -> [NSError]?
     func handleHTTPStatusCode(_ code: Int)
@@ -61,7 +61,7 @@ open class DefaultHttpClientConfiguration: HttpClientInterface, HttpLoggerProtoc
     }
     
     // MARK: - HttpClientInterface
-    open func prepareHTTPHeaders(for request: URLRequest, completion: ((_ headers: HTTPHeaders) -> Void)) {
+    open func prepareHTTPHeaders(for request: URLRequest, completion: @escaping ((_ headers: HTTPHeaders) -> Void)) {
         completion([:])
     }
     

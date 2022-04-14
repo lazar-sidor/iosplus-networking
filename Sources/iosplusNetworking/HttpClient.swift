@@ -329,7 +329,7 @@ private extension HttpClient {
         headerParams: HTTPHeaders,
         inputJSON: Any?,
         inputObject: T?,
-        responseType: HTTPResponseType, completion: ((_ mutableRequest: NSMutableURLRequest) -> Void)) {
+        responseType: HTTPResponseType, completion: @escaping ((_ mutableRequest: NSMutableURLRequest) -> Void)) {
             let request = NSMutableURLRequest(url: url)
             request.httpMethod = httpMethod.rawValue
             request.setValue(contentType.rawValue, forHTTPHeaderField: "Content-Type")
