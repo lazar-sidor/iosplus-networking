@@ -28,6 +28,15 @@ public struct AuthorizationCredentials {
     public var password: String?
 
     public init() {
+        authorizationType = .unsupported
+    }
+
+    public init(authorizationType: AuthorizationType, facebookSettings: FacebookSettings?, phoneNumberData: PhoneNumberData?, username: String?, password: String?) {
+        self.authorizationType = authorizationType
+        self.facebookSettings = facebookSettings
+        self.phoneNumberData = phoneNumberData
+        self.username = username
+        self.password = password
     }
 }
 
@@ -55,6 +64,12 @@ public struct FacebookSettings {
     public var applicationId: String
     public var applicationDisplayName: String?
     public var permisssions: [String] = ["email"]
+
+    public init(applicationId: String, applicationDisplayName: String?, permisssions: [String] = ["email"]) {
+        self.applicationId = applicationId
+        self.applicationDisplayName = applicationDisplayName
+        self.permisssions = permisssions
+    }
 }
 
 /// Type of result returned by all user registration and authentication methods
