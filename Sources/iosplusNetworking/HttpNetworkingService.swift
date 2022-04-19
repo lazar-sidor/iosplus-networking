@@ -1,6 +1,5 @@
 //
 //  HttpRequestManager.swift
-//  
 //
 //  Created by Lazar Sidor on 07.01.2022.
 //
