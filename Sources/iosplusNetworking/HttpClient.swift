@@ -479,7 +479,11 @@ private extension HttpClient {
 
             if HTTPStatus.isValid(from: httpResponse) == false {
                 if completion != nil {
-                    completion!(apiResponse, data, taskError)
+                    var error = taskError
+                    if error == nil {
+                        error = NSError(domain: String(describing: HttpClient.self), code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: ApiErrorCode.custom(code: httpResponse.statusCode, message: nil).errorDescription!])
+                    }
+                    completion!(apiResponse, data, error)
                 }
                 return
             }
